@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Calendar from './features/calendar/Calendar'
+import Notes from './features/notes/Notes'
 
 const TABS = ['Kalender', 'Notizen', 'Claude'] as const
 type Tab = (typeof TABS)[number]
@@ -29,7 +30,7 @@ export default function App() {
 
       <main>
         {tab === 'Kalender' && <Calendar />}
-        {tab === 'Notizen' && <ComingSoon text="Obsidian-Notizen folgen in Kürze." />}
+        {tab === 'Notizen' && <Notes />}
         {tab === 'Claude' && <ComingSoon text="Die Claude-Anbindung folgt in Kürze." />}
       </main>
     </div>
