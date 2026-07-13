@@ -2,8 +2,9 @@ import { useState } from 'react'
 import Calendar from './features/calendar/Calendar'
 import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
+import Sync from './features/sync/Sync'
 
-const TABS = ['Kalender', 'Notizen', 'Claude'] as const
+const TABS = ['Kalender', 'Notizen', 'Claude', 'Sync'] as const
 type Tab = (typeof TABS)[number]
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         {tab === 'Kalender' && <Calendar />}
         {tab === 'Notizen' && <Notes />}
         {tab === 'Claude' && <ClaudeChat />}
+        {tab === 'Sync' && <Sync />}
       </main>
     </div>
   )
