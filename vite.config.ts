@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: '/life-hub-app/',
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),
@@ -29,7 +29,7 @@ export default defineConfig({
       workbox: {
         // App-Shell offline verfuegbar; API-Aufrufe (Anthropic, GitHub) laufen nie durch den Cache
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
-        navigateFallback: '/life-hub-app/index.html',
+        navigateFallback: '/index.html',
       },
     }),
   ],
