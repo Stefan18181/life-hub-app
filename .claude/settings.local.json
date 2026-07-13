@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"$env:APPDATA\\\\obsidian\" -ErrorAction SilentlyContinue | Select-Object Name; if \\(Test-Path \"$env:APPDATA\\\\obsidian\\\\obsidian.json\"\\) { Get-Content \"$env:APPDATA\\\\obsidian\\\\obsidian.json\" -Raw })",
+      "PowerShell(git config --global user.name)",
+      "PowerShell(git config --global user.email)",
+      "PowerShell(gh auth status)",
+      "Bash(\"/c/Users/User/.claude/plugins/cache/claude-plugins-official/superpowers/d884ae04edeb/skills/brainstorming/scripts/start-server.sh\" --project-dir \"/c/Users/User/claude neu\" --open)",
+      "PowerShell(node --version; npm --version; \\(Get-Command node -ErrorAction SilentlyContinue\\).Source)",
+      "PowerShell(winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent)",
+      "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" --version)",
+      "Bash(Get-ChildItem -Force)",
+      "Bash(Select-Object Name)",
+      "Bash(npm --version)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173/life-hub-app/)",
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(jobs -l)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
