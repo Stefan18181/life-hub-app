@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Calendar from './features/calendar/Calendar'
+import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
 
 const TABS = ['Kalender', 'Notizen', 'Claude'] as const
@@ -31,16 +32,8 @@ export default function App() {
       <main>
         {tab === 'Kalender' && <Calendar />}
         {tab === 'Notizen' && <Notes />}
-        {tab === 'Claude' && <ComingSoon text="Die Claude-Anbindung folgt in Kürze." />}
+        {tab === 'Claude' && <ClaudeChat />}
       </main>
-    </div>
-  )
-}
-
-function ComingSoon(props: { text: string }) {
-  return (
-    <div className="flex h-64 items-center justify-center rounded-xl border border-line bg-card">
-      <p className="font-serif text-lg text-muted">{props.text}</p>
     </div>
   )
 }
