@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Calendar from './features/calendar/Calendar'
 import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
+import TopBar from './features/overview/TopBar'
 import Sync from './features/sync/Sync'
 
 const TABS = ['Kalender', 'Notizen', 'Claude', 'Sync'] as const
@@ -29,6 +30,8 @@ export default function App() {
           ))}
         </nav>
       </header>
+
+      <TopBar />
 
       <main>
         {tab === 'Kalender' && <Calendar />}
