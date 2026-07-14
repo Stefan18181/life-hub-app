@@ -48,6 +48,29 @@ export function describeWeatherCode(code: number): { description: string; emoji:
   return WMO[code] ?? { description: 'Unbekannt', emoji: '🌡️' }
 }
 
+export type WeatherIconKind =
+  | 'clear'
+  | 'partly'
+  | 'cloudy'
+  | 'fog'
+  | 'drizzle'
+  | 'rain'
+  | 'snow'
+  | 'thunder'
+
+/** Ordnet einen WMO-Code einer Icon-Kategorie zu (für die SVG-Symbole). */
+export function weatherIcon(code: number): WeatherIconKind {
+  if (code === 0) return 'clear'
+  if (code === 1 || code === 2) return 'partly'
+  if (code === 3) return 'cloudy'
+  if (code === 45 || code === 48) return 'fog'
+  if (code >= 51 && code <= 57) return 'drizzle'
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return 'rain'
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow'
+  if (code >= 95) return 'thunder'
+  return 'cloudy'
+}
+
 /** Ermittelt die aktuelle Position über die Geolocation-API des Browsers. */
 export function getPosition(): Promise<{ latitude: number; longitude: number }> {
   return new Promise((resolve, reject) => {

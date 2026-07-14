@@ -5,9 +5,11 @@ import {
   fetchWeather,
   getPosition,
   readWeatherCache,
+  weatherIcon,
   writeWeatherCache,
   type Weather,
 } from '../../lib/weather'
+import WeatherIcon from './WeatherIcon'
 
 export default function TopBar() {
   return (
@@ -48,9 +50,10 @@ function WeatherCard() {
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-line bg-card px-4 py-3">
-      <span className="text-2xl" aria-hidden>
-        {weather ? weather.emoji : '🌡️'}
-      </span>
+      <WeatherIcon
+        kind={weather ? weatherIcon(weather.code) : 'cloudy'}
+        className={'h-9 w-9 shrink-0 ' + (weather ? 'text-ink' : 'text-muted')}
+      />
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wide text-muted">Heute</p>
         {weather ? (
