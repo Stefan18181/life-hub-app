@@ -9,6 +9,9 @@ export interface CalendarEvent {
 
 const STORAGE_KEY = 'life-hub.events.v1'
 
+/** Wird nach jedem Speichern auf window ausgelöst, damit die Kopfleiste aktualisiert. */
+export const EVENTS_CHANGED = 'life-hub:events-changed'
+
 export function loadEvents(): CalendarEvent[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -30,6 +33,9 @@ export function loadEvents(): CalendarEvent[] {
 
 export function saveEvents(events: CalendarEvent[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(events))
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(EVENTS_CHANGED))
+  }
 }
 
 export function addEvent(
@@ -46,6 +52,14 @@ export function removeEvent(events: CalendarEvent[], id: string): CalendarEvent[
 
 export function eventsOn(events: CalendarEvent[], date: string): CalendarEvent[] {
   return events.filter((e) => e.date === date)
+}
+
+/**
+ * Der nächste anstehende Termin ab (einschließlich) dem gegebenen ISO-Datum,
+ * oder null, wenn keiner mehr ansteht.
+ */
+export function nextEvent(events: CalendarEvent[], fromDate: string): CalendarEvent | null {
+  return sortEvents(events.filter((e) => e.date >= fromDate))[0] ?? null
 }
 
 function sortEvents(events: CalendarEvent[]): CalendarEvent[] {

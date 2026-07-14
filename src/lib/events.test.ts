@@ -3,6 +3,7 @@ import {
   addEvent,
   eventsOn,
   loadEvents,
+  nextEvent,
   removeEvent,
   saveEvents,
   type CalendarEvent,
@@ -30,6 +31,25 @@ describe('removeEvent / eventsOn', () => {
     events = removeEvent(events, events[0].id)
     expect(events).toHaveLength(2)
     expect(eventsOn(events, '2026-07-13').map((e) => e.title)).toEqual(['B'])
+  })
+})
+
+describe('nextEvent', () => {
+  it('liefert den frühesten Termin ab heute und ignoriert vergangene', () => {
+    let events: CalendarEvent[] = []
+    events = addEvent(events, { date: '2026-07-10', title: 'Vorbei' })
+    events = addEvent(events, { date: '2026-07-16', title: 'Friseur', time: '17:30' })
+    events = addEvent(events, { date: '2026-07-16', title: 'Frühsport', time: '07:00' })
+    events = addEvent(events, { date: '2026-07-20', title: 'Später' })
+
+    const next = nextEvent(events, '2026-07-14')
+    expect(next?.title).toBe('Frühsport')
+  })
+
+  it('zählt den heutigen Tag mit und liefert null, wenn nichts ansteht', () => {
+    const events = addEvent([], { date: '2026-07-14', title: 'Heute' })
+    expect(nextEvent(events, '2026-07-14')?.title).toBe('Heute')
+    expect(nextEvent(events, '2026-07-15')).toBeNull()
   })
 })
 

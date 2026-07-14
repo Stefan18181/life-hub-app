@@ -2,9 +2,11 @@ import { useState } from 'react'
 import Calendar from './features/calendar/Calendar'
 import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
+import TopBar from './features/overview/TopBar'
 import Sync from './features/sync/Sync'
+import Todos from './features/todos/Todos'
 
-const TABS = ['Kalender', 'Notizen', 'Claude', 'Sync'] as const
+const TABS = ['Kalender', 'To-dos', 'Notizen', 'Claude', 'Sync'] as const
 type Tab = (typeof TABS)[number]
 
 export default function App() {
@@ -30,8 +32,11 @@ export default function App() {
         </nav>
       </header>
 
+      <TopBar />
+
       <main>
         {tab === 'Kalender' && <Calendar />}
+        {tab === 'To-dos' && <Todos />}
         {tab === 'Notizen' && <Notes />}
         {tab === 'Claude' && <ClaudeChat />}
         {tab === 'Sync' && <Sync />}

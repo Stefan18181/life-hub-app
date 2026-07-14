@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { buildSystemPrompt } from './claude'
-import type { CalendarEvent } from './events'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { buildSystemPrompt, runEventTool } from './claude'
+import { loadEvents, saveEvents, type CalendarEvent } from './events'
 import type { Note } from './notes'
 
 const today = new Date(2026, 6, 13) // 13. Juli 2026
@@ -42,5 +42,64 @@ describe('buildSystemPrompt', () => {
 
   it('nennt das heutige Datum', () => {
     expect(buildSystemPrompt([], [], today)).toContain('13. Juli 2026')
+  })
+})
+
+describe('runEventTool: add_event', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('legt einen Termin mit Uhrzeit im localStorage an', () => {
+    const outcome = runEventTool('add_event', {
+      date: '2026-07-16',
+      title: 'Friseur',
+      time: '17:30',
+    })
+    expect(outcome.isError).toBe(false)
+    expect(loadEvents()).toEqual([
+      { id: expect.any(String), date: '2026-07-16', title: 'Friseur', time: '17:30' },
+    ])
+  })
+
+  it('akzeptiert Termine ohne Uhrzeit und lässt time weg', () => {
+    runEventTool('add_event', { date: '2026-07-16', title: 'Sport' })
+    expect(loadEvents()[0].time).toBeUndefined()
+  })
+
+  it('lehnt ungültiges Datum, leeren Titel und falsche Uhrzeit ab', () => {
+    expect(runEventTool('add_event', { date: '16.07.2026', title: 'X' }).isError).toBe(true)
+    expect(runEventTool('add_event', { date: '2026-07-16', title: '  ' }).isError).toBe(true)
+    expect(runEventTool('add_event', { date: '2026-07-16', title: 'X', time: '25:00' }).isError).toBe(
+      true,
+    )
+    expect(loadEvents()).toEqual([])
+  })
+})
+
+describe('runEventTool: remove_event', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    const seed: CalendarEvent[] = [
+      { id: 'a', date: '2026-07-16', title: 'Friseur', time: '17:30' },
+      { id: 'b', date: '2026-07-16', title: 'Zahnarzt', time: '09:00' },
+      { id: 'c', date: '2026-07-17', title: 'Friseur' },
+    ]
+    saveEvents(seed)
+  })
+
+  it('löscht mit Titelfilter nur den passenden Termin des Tages', () => {
+    const outcome = runEventTool('remove_event', { date: '2026-07-16', title: 'friseur' })
+    expect(outcome.isError).toBe(false)
+    expect(loadEvents().map((e) => e.id)).toEqual(['b', 'c'])
+  })
+
+  it('löscht ohne Titel alle Termine des Tages', () => {
+    runEventTool('remove_event', { date: '2026-07-16' })
+    expect(loadEvents().map((e) => e.id)).toEqual(['c'])
+  })
+
+  it('meldet ohne Fehler, wenn nichts passt', () => {
+    const outcome = runEventTool('remove_event', { date: '2026-07-20' })
+    expect(outcome.isError).toBe(false)
+    expect(loadEvents()).toHaveLength(3)
   })
 })

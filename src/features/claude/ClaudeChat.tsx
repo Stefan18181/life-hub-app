@@ -5,16 +5,22 @@ import {
   CLAUDE_MODEL,
   clearApiKey,
   createClient,
+  EVENT_TOOLS,
   loadApiKey,
+  runEventTool,
   saveApiKey,
 } from '../../lib/claude'
 import { loadEvents } from '../../lib/events'
 import { loadNotes } from '../../lib/notes'
 
 interface ChatMessage {
-  role: 'user' | 'assistant'
+  /** 'info' sind Werkzeug-Rückmeldungen (z. B. "Termin hinzugefügt"). */
+  role: 'user' | 'assistant' | 'info'
   text: string
 }
+
+/** Verhindert Endlosschleifen, falls Claude wiederholt Werkzeuge aufruft. */
+const MAX_TOOL_ROUNDS = 6
 
 export default function ClaudeChat() {
   const [apiKey, setApiKey] = useState<string | null>(() => loadApiKey())
@@ -78,45 +84,86 @@ function Chat(props: { apiKey: string; onResetKey: () => void }) {
   const [thinking, setThinking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  /** Vollständige API-Historie inkl. tool_use-/tool_result-Blöcken. */
+  const apiHistory = useRef<Anthropic.MessageParam[]>([])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, thinking])
+
+  function resetChat() {
+    setMessages([])
+    setError(null)
+    apiHistory.current = []
+  }
 
   async function send(e: React.FormEvent) {
     e.preventDefault()
     const text = input.trim()
     if (!text || busy) return
 
-    const history = [...messages, { role: 'user' as const, text }]
-    setMessages(history)
+    let display: ChatMessage[] = [...messages, { role: 'user', text }]
+    setMessages(display)
     setInput('')
     setError(null)
     setBusy(true)
     setThinking(true)
 
+    // Nutzer-Nachricht in die API-Historie aufnehmen; bei Fehler zurückrollen.
+    const rollbackTo = apiHistory.current.length
+    apiHistory.current.push({ role: 'user', content: text })
+
     try {
       const client = createClient(props.apiKey)
-      const system = buildSystemPrompt(loadEvents(), loadNotes(), new Date())
 
-      const stream = client.messages.stream({
-        model: CLAUDE_MODEL,
-        max_tokens: 64000,
-        thinking: { type: 'adaptive' },
-        system,
-        messages: history.map((m) => ({ role: m.role, content: m.text })),
-      })
+      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        // Kontext bei jeder Runde neu bauen, damit der Kalender-Stand aktuell ist.
+        const system = buildSystemPrompt(loadEvents(), loadNotes(), new Date())
+        const stream = client.messages.stream({
+          model: CLAUDE_MODEL,
+          max_tokens: 64000,
+          thinking: { type: 'adaptive' },
+          system,
+          tools: EVENT_TOOLS,
+          messages: apiHistory.current,
+        })
 
-      let assistantText = ''
-      stream.on('text', (delta) => {
-        setThinking(false)
-        assistantText += delta
-        setMessages([...history, { role: 'assistant', text: assistantText }])
-      })
+        let assistantText = ''
+        let hasBubble = false
+        stream.on('text', (delta) => {
+          setThinking(false)
+          assistantText += delta
+          const bubble: ChatMessage = { role: 'assistant', text: assistantText }
+          display = hasBubble ? [...display.slice(0, -1), bubble] : [...display, bubble]
+          hasBubble = true
+          setMessages(display)
+        })
 
-      await stream.finalMessage()
+        const final = await stream.finalMessage()
+        apiHistory.current.push({ role: 'assistant', content: final.content })
+
+        const toolUses = final.content.filter(
+          (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+        )
+        if (toolUses.length === 0) break
+
+        const results: Anthropic.ToolResultBlockParam[] = []
+        for (const use of toolUses) {
+          const outcome = runEventTool(use.name, use.input)
+          results.push({
+            type: 'tool_result',
+            tool_use_id: use.id,
+            content: outcome.summary,
+            is_error: outcome.isError,
+          })
+          display = [...display, { role: 'info', text: outcome.summary }]
+          setMessages(display)
+        }
+        apiHistory.current.push({ role: 'user', content: results })
+        setThinking(true)
+      }
     } catch (err) {
-      setMessages(history)
+      apiHistory.current.length = rollbackTo
       setError(describeError(err))
     } finally {
       setBusy(false)
@@ -130,7 +177,7 @@ function Chat(props: { apiKey: string; onResetKey: () => void }) {
         <h2 className="font-serif text-lg text-gold">Claude</h2>
         <div className="flex gap-2 text-sm">
           <button
-            onClick={() => { setMessages([]); setError(null) }}
+            onClick={resetChat}
             className="rounded-md border border-line px-3 py-1 text-muted transition-colors hover:border-gold hover:text-gold"
           >
             Neuer Chat
@@ -147,23 +194,33 @@ function Chat(props: { apiKey: string; onResetKey: () => void }) {
       <div className="flex min-h-72 flex-col gap-3 overflow-y-auto p-4" style={{ maxHeight: '60vh' }}>
         {messages.length === 0 && !error && (
           <p className="m-auto max-w-sm text-center font-serif text-muted">
-            Frag mich etwas — ich kenne deine Termine und Notiz-Titel und helfe
-            dir beim Planen.
+            Frag mich etwas — ich kenne deine Termine und Notiz-Titel, helfe dir
+            beim Planen und kann Termine für dich eintragen oder löschen.
           </p>
         )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={
-              'max-w-[85%] whitespace-pre-wrap rounded-lg px-4 py-2.5 text-sm leading-relaxed ' +
-              (m.role === 'user'
-                ? 'self-end bg-gold/15 text-ink'
-                : 'self-start border border-line bg-night text-ink')
-            }
-          >
-            {m.text}
-          </div>
-        ))}
+        {messages.map((m, i) =>
+          m.role === 'info' ? (
+            <div
+              key={i}
+              className="self-center rounded-md border border-gold/30 bg-night px-3 py-1.5 text-xs text-gold"
+            >
+              {m.text.startsWith('Fehler') ? '⚠ ' : '✓ '}
+              {m.text}
+            </div>
+          ) : (
+            <div
+              key={i}
+              className={
+                'max-w-[85%] whitespace-pre-wrap rounded-lg px-4 py-2.5 text-sm leading-relaxed ' +
+                (m.role === 'user'
+                  ? 'self-end bg-gold/15 text-ink'
+                  : 'self-start border border-line bg-night text-ink')
+              }
+            >
+              {m.text}
+            </div>
+          ),
+        )}
         {thinking && (
           <div className="self-start rounded-lg border border-line bg-night px-4 py-2.5 text-sm text-muted">
             <span className="animate-pulse">Claude denkt nach …</span>

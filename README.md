@@ -8,7 +8,7 @@ Dein persönlicher Hub für Kalender, Notizen und Claude — als installierbare,
 
 - **Kalender** — Monatsansicht mit Terminverwaltung (optional mit Uhrzeit), Wochenstart Montag.
 - **Notizen** — Markdown-Editor mit Vorschau und Obsidian-kompatiblen `[[Wikilinks]]` zwischen Notizen.
-- **Claude-Chat** — Direkter Chat mit Claude aus dem Browser. Claude kennt deine Termine und Notiz-Titel als Kontext. Der Anthropic-API-Key bleibt lokal im Browser.
+- **Claude-Chat** — Direkter Chat mit Claude aus dem Browser. Claude kennt deine Termine und Notiz-Titel als Kontext und kann Termine per Chat direkt anlegen oder löschen (z. B. „Trag Donnerstag 17:30 Friseur ein"). Der Anthropic-API-Key bleibt lokal im Browser.
 - **Git-Sync** — Sichert Notizen als Markdown-Dateien und Termine als JSON in ein GitHub-Repo (Obsidian-kompatibel).
 - **PWA** — Installierbar aufs Handy/Desktop, funktioniert offline. Termine und Notizen werden lokal im Browser gespeichert.
 
