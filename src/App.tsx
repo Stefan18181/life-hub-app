@@ -3,10 +3,11 @@ import Calendar from './features/calendar/Calendar'
 import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
 import TopBar from './features/overview/TopBar'
+import Search from './features/search/Search'
 import Sync from './features/sync/Sync'
 import Todos from './features/todos/Todos'
 
-const TABS = ['Kalender', 'To-dos', 'Notizen', 'Claude', 'Sync'] as const
+const TABS = ['Kalender', 'To-dos', 'Notizen', 'Claude', 'Suche', 'Sync'] as const
 type Tab = (typeof TABS)[number]
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         {tab === 'To-dos' && <Todos />}
         {tab === 'Notizen' && <Notes />}
         {tab === 'Claude' && <ClaudeChat />}
+        {tab === 'Suche' && <Search />}
         {tab === 'Sync' && <Sync />}
       </main>
     </div>
