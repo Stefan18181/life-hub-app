@@ -16,6 +16,8 @@ export interface CalendarEvent {
   repeat?: Repeat
   /** Ausgenommene Tage (ISO-Daten), an denen eine Wiederholung nicht stattfindet */
   except?: string[]
+  /** Farb-Markierung (Schlüssel aus EVENT_COLORS), optional */
+  color?: string
 }
 
 const STORAGE_KEY = 'life-hub.events.v1'
