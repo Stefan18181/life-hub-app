@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { isoDate, monthGrid, monthLabel, sameDay, weekGrid, weekLabel } from '../../lib/date'
 import {
   addEvent,
+  addException,
   eventsOn,
   loadEvents,
   removeEvent,
@@ -104,6 +105,7 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
         }
         onUpdate={(id, patch) => setEvents((prev) => updateEvent(prev, id, patch))}
         onRemove={(id) => setEvents((prev) => removeEvent(prev, id))}
+        onRemoveOccurrence={(id) => setEvents((prev) => addException(prev, id, selected))}
       />
     </div>
   )
@@ -256,6 +258,7 @@ function DayPanel(props: {
   onAdd: (title: string, time: string, repeat: Repeat | undefined) => void
   onUpdate: (id: string, patch: { title: string; time?: string; repeat?: Repeat }) => void
   onRemove: (id: string) => void
+  onRemoveOccurrence: (id: string) => void
 }) {
   const [title, setTitle] = useState('')
   const [time, setTime] = useState('')
@@ -335,8 +338,19 @@ function DayPanel(props: {
                 >
                   ✎
                 </button>
+                {e.repeat && (
+                  <button
+                    aria-label={`${e.title} nur an diesem Tag entfernen`}
+                    title="Nur diesen Tag entfernen"
+                    onClick={() => props.onRemoveOccurrence(e.id)}
+                    className="text-muted transition-colors hover:text-gold"
+                  >
+                    ⊘
+                  </button>
+                )}
                 <button
-                  aria-label={`${e.title} löschen`}
+                  aria-label={e.repeat ? `${e.title} – ganze Serie löschen` : `${e.title} löschen`}
+                  title={e.repeat ? 'Ganze Serie löschen' : 'Löschen'}
                   onClick={() => props.onRemove(e.id)}
                   className="text-muted transition-colors hover:text-gold"
                 >
