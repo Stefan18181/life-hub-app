@@ -6,6 +6,7 @@ import {
   loadEvents,
   removeEvent,
   saveEvents,
+  updateEvent,
   type CalendarEvent,
   type Repeat,
 } from '../../lib/events'
@@ -101,6 +102,7 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
             addEvent(prev, { date: selected, title, time: time || undefined, repeat }),
           )
         }
+        onUpdate={(id, patch) => setEvents((prev) => updateEvent(prev, id, patch))}
         onRemove={(id) => setEvents((prev) => removeEvent(prev, id))}
       />
     </div>
@@ -252,11 +254,21 @@ function DayPanel(props: {
   date: string
   events: CalendarEvent[]
   onAdd: (title: string, time: string, repeat: Repeat | undefined) => void
+  onUpdate: (id: string, patch: { title: string; time?: string; repeat?: Repeat }) => void
   onRemove: (id: string) => void
 }) {
   const [title, setTitle] = useState('')
   const [time, setTime] = useState('')
   const [repeat, setRepeat] = useState<'' | Repeat>('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Formular zurücksetzen, wenn ein anderer Tag gewählt wird.
+  useEffect(() => {
+    setEditingId(null)
+    setTitle('')
+    setTime('')
+    setRepeat('')
+  }, [props.date])
 
   const label = new Date(props.date + 'T00:00').toLocaleDateString('de-DE', {
     weekday: 'long',
@@ -264,14 +276,30 @@ function DayPanel(props: {
     month: 'long',
   })
 
+  function resetForm() {
+    setEditingId(null)
+    setTitle('')
+    setTime('')
+    setRepeat('')
+  }
+
+  function startEdit(e: CalendarEvent) {
+    setEditingId(e.id)
+    setTitle(e.title)
+    setTime(e.time ?? '')
+    setRepeat(e.repeat ?? '')
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const trimmed = title.trim()
     if (!trimmed) return
-    props.onAdd(trimmed, time, repeat || undefined)
-    setTitle('')
-    setTime('')
-    setRepeat('')
+    if (editingId) {
+      props.onUpdate(editingId, { title: trimmed, time: time || undefined, repeat: repeat || undefined })
+    } else {
+      props.onAdd(trimmed, time, repeat || undefined)
+    }
+    resetForm()
   }
 
   return (
@@ -285,7 +313,10 @@ function DayPanel(props: {
           {props.events.map((e) => (
             <li
               key={e.id}
-              className="flex items-center justify-between gap-2 rounded-md border border-line px-3 py-2 text-sm"
+              className={
+                'flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm ' +
+                (e.id === editingId ? 'border-gold' : 'border-line')
+              }
             >
               <span className="min-w-0">
                 {e.time && <span className="mr-2 text-gold">{e.time}</span>}
@@ -296,13 +327,22 @@ function DayPanel(props: {
                   </span>
                 )}
               </span>
-              <button
-                aria-label={`${e.title} löschen`}
-                onClick={() => props.onRemove(e.id)}
-                className="shrink-0 text-muted transition-colors hover:text-gold"
-              >
-                ✕
-              </button>
+              <span className="flex shrink-0 gap-2">
+                <button
+                  aria-label={`${e.title} bearbeiten`}
+                  onClick={() => startEdit(e)}
+                  className="text-muted transition-colors hover:text-gold"
+                >
+                  ✎
+                </button>
+                <button
+                  aria-label={`${e.title} löschen`}
+                  onClick={() => props.onRemove(e.id)}
+                  className="text-muted transition-colors hover:text-gold"
+                >
+                  ✕
+                </button>
+              </span>
             </li>
           ))}
         </ul>
@@ -312,7 +352,7 @@ function DayPanel(props: {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Neuer Termin…"
+          placeholder={editingId ? 'Titel bearbeiten…' : 'Neuer Termin…'}
           className="w-full rounded-md border border-line bg-night px-3 py-2 text-sm placeholder:text-muted focus:border-gold focus:outline-none"
         />
         <div className="flex gap-2">
@@ -333,11 +373,20 @@ function DayPanel(props: {
             <option value="weekly">Wöchentlich</option>
             <option value="monthly">Monatlich</option>
           </select>
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-md border border-line px-3 py-2 text-sm text-muted transition-colors hover:border-gold hover:text-gold"
+            >
+              Abbrechen
+            </button>
+          )}
           <button
             type="submit"
             className="flex-1 rounded-md bg-gold px-3 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90"
           >
-            Hinzufügen
+            {editingId ? 'Speichern' : 'Hinzufügen'}
           </button>
         </div>
       </form>
