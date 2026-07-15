@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { CalendarEvent } from './events'
+import type { CalendarEvent, Repeat } from './events'
 import {
   dueReminders,
   eventStart,
   loadNotifiedIds,
+  reminderKey,
   reminderText,
   saveNotifiedIds,
 } from './reminders'
 
-function event(id: string, date: string, title: string, time?: string): CalendarEvent {
-  return { id, date, title, time }
+function event(
+  id: string,
+  date: string,
+  title: string,
+  time?: string,
+  repeat?: Repeat,
+): CalendarEvent {
+  return { id, date, title, time, repeat }
 }
 
 describe('eventStart', () => {
@@ -37,9 +44,15 @@ describe('dueReminders', () => {
     ])
   })
 
-  it('überspringt bereits benachrichtigte Termine', () => {
-    const events = [event('soon', '2026-07-16', 'Bald', '17:20')]
-    expect(dueReminders(events, now, lead, new Set(['soon']))).toEqual([])
+  it('überspringt bereits (heute) benachrichtigte Termine', () => {
+    const e = event('soon', '2026-07-16', 'Bald', '17:20')
+    expect(dueReminders([e], now, lead, new Set([reminderKey(e, now)]))).toEqual([])
+  })
+
+  it('erinnert auch an wiederkehrende Termine an einem Wiederholungstag', () => {
+    // Täglicher Termin, gestartet vor Tagen, hat heute um 17:20 eine Wiederholung
+    const daily = event('d', '2026-07-01', 'Sport', '17:20', 'daily')
+    expect(dueReminders([daily], now, lead, new Set()).map((e) => e.id)).toEqual(['d'])
   })
 })
 
