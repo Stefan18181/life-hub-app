@@ -59,6 +59,15 @@ export function removeEvent(events: CalendarEvent[], id: string): CalendarEvent[
   return events.filter((e) => e.id !== id)
 }
 
+/** Ersetzt Titel/Uhrzeit/Wiederholung eines Termins (Datum und ID bleiben). */
+export function updateEvent(
+  events: CalendarEvent[],
+  id: string,
+  patch: Partial<Omit<CalendarEvent, 'id' | 'date'>>,
+): CalendarEvent[] {
+  return sortEvents(events.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+}
+
 /** Anzahl Tage zwischen zwei ISO-Daten (toIso - fromIso). */
 function daysBetween(fromIso: string, toIso: string): number {
   const a = new Date(fromIso + 'T00:00')

@@ -8,6 +8,7 @@ import {
   occursOn,
   removeEvent,
   saveEvents,
+  updateEvent,
   type CalendarEvent,
 } from './events'
 
@@ -56,6 +57,32 @@ describe('nextEvent', () => {
     const events = addEvent([], { date: '2026-07-14', title: 'Heute' })
     expect(nextEvent(events, '2026-07-14')?.title).toBe('Heute')
     expect(nextEvent(events, '2026-07-15')).toBeNull()
+  })
+})
+
+describe('updateEvent', () => {
+  it('ändert Titel/Uhrzeit/Wiederholung und lässt Datum und ID unberührt', () => {
+    const before = addEvent([], { date: '2026-07-16', title: 'Alt' })
+    const id = before[0].id
+    const after = updateEvent(before, id, { title: 'Neu', time: '10:00', repeat: 'weekly' })
+    expect(after[0]).toEqual({ id, date: '2026-07-16', title: 'Neu', time: '10:00', repeat: 'weekly' })
+  })
+
+  it('kann Uhrzeit und Wiederholung wieder entfernen (undefined)', () => {
+    let events = addEvent([], { date: '2026-07-16', title: 'X', time: '09:00', repeat: 'daily' })
+    const id = events[0].id
+    events = updateEvent(events, id, { title: 'X', time: undefined, repeat: undefined })
+    expect(events[0].time).toBeUndefined()
+    expect(events[0].repeat).toBeUndefined()
+  })
+
+  it('lässt andere Termine unverändert', () => {
+    let events = addEvent([], { date: '2026-07-16', title: 'A' })
+    events = addEvent(events, { date: '2026-07-16', title: 'B' })
+    const idA = events.find((e) => e.title === 'A')!.id
+    events = updateEvent(events, idA, { title: 'A2' })
+    expect(events.find((e) => e.id === idA)?.title).toBe('A2')
+    expect(events.some((e) => e.title === 'B')).toBe(true)
   })
 })
 
