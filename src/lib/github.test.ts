@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeContent, encodeContent, noteFileName, notesToFiles } from './github'
+import { decodeContent, encodeContent, noteFileName, notesToFiles, parseTodos } from './github'
 import type { Note } from './notes'
 
 function note(title: string, content = ''): Note {
@@ -34,5 +34,23 @@ describe('notesToFiles', () => {
     const files = notesToFiles([note('Plan', 'eins'), note('Plan', 'zwei'), note('Plan', 'drei')])
     expect([...files.keys()]).toEqual(['Plan.md', 'Plan 2.md', 'Plan 3.md'])
     expect(files.get('Plan 2.md')).toBe('zwei')
+  })
+})
+
+describe('parseTodos', () => {
+  it('liest gültige To-dos und filtert kaputte Einträge', () => {
+    const json = JSON.stringify([
+      { id: 'a', text: 'Milch', done: false, createdAt: '2026-07-13T10:00:00Z' },
+      { id: 'b', text: 'Brot', done: true, createdAt: '2026-07-13T09:00:00Z' },
+      { text: 'ohne id' },
+      null,
+      42,
+    ])
+    const todos = parseTodos(json)
+    expect(todos.map((t) => t.id)).toEqual(['a', 'b'])
+  })
+
+  it('gibt bei Nicht-Arrays eine leere Liste zurück', () => {
+    expect(parseTodos('{"nicht":"array"}')).toEqual([])
   })
 })

@@ -10,6 +10,7 @@ import {
   type SyncConfig,
 } from '../../lib/github'
 import { loadNotes, saveNotes } from '../../lib/notes'
+import { loadTodos, saveTodos } from '../../lib/todos'
 
 export default function Sync() {
   const [config, setConfig] = useState<SyncConfig | null>(() => loadSyncConfig())
@@ -49,8 +50,8 @@ function SetupForm(props: { onSave: (cfg: SyncConfig) => void }) {
     <div className="mx-auto max-w-lg rounded-xl border border-line bg-card p-6">
       <h2 className="mb-2 font-serif text-xl text-gold">Git-Sync einrichten</h2>
       <p className="mb-4 text-sm text-muted">
-        Deine Notizen werden als Markdown-Dateien (Obsidian-kompatibel) und deine
-        Termine als JSON in ein GitHub-Repository gesichert. Du brauchst ein
+        Deine Notizen werden als Markdown-Dateien (Obsidian-kompatibel) sowie
+        deine Termine und To-dos als JSON in ein GitHub-Repository gesichert. Du brauchst ein
         Repository und einen Fine-grained Personal Access Token mit der
         Berechtigung „Contents: Read and write". Token und Einstellungen bleiben
         lokal in deinem Browser.
@@ -101,7 +102,7 @@ function SyncPanel(props: { config: SyncConfig; onReset: () => void }) {
     setBusy(true)
     setLog([`Lade hoch nach ${props.config.repo} (${props.config.branch}) …`])
     try {
-      await uploadAll(props.config, loadEvents(), loadNotes(), appendLog)
+      await uploadAll(props.config, loadEvents(), loadNotes(), loadTodos(), appendLog)
       appendLog('Fertig — alles gesichert. ✓')
     } catch (err) {
       appendLog(`Fehler: ${describeSyncError(err)}`)
@@ -113,15 +114,16 @@ function SyncPanel(props: { config: SyncConfig; onReset: () => void }) {
   async function download() {
     if (busy) return
     const ok = window.confirm(
-      'Herunterladen ersetzt deine lokalen Termine und Notizen durch den Stand aus dem Repository. Fortfahren?',
+      'Herunterladen ersetzt deine lokalen Termine, To-dos und Notizen durch den Stand aus dem Repository. Fortfahren?',
     )
     if (!ok) return
     setBusy(true)
     setLog([`Lade herunter von ${props.config.repo} (${props.config.branch}) …`])
     try {
-      const { events, notes } = await downloadAll(props.config, appendLog)
+      const { events, notes, todos } = await downloadAll(props.config, appendLog)
       saveEvents(events)
       saveNotes(notes)
+      saveTodos(todos)
       appendLog('Fertig — lokale Daten aktualisiert. ✓')
     } catch (err) {
       appendLog(`Fehler: ${describeSyncError(err)}`)
