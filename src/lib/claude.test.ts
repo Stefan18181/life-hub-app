@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { buildSystemPrompt, runEventTool, runTodoTool, runTool } from './claude'
+import { buildSystemPrompt, runEventTool, runNoteTool, runTodoTool, runTool } from './claude'
 import { loadEvents, saveEvents, type CalendarEvent } from './events'
-import type { Note } from './notes'
+import { loadNotes, type Note } from './notes'
 import { loadTodos, saveTodos, type Todo } from './todos'
 
 const today = new Date(2026, 6, 13) // 13. Juli 2026
@@ -138,13 +138,42 @@ describe('runTodoTool', () => {
   })
 })
 
+describe('runNoteTool', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('legt eine Notiz mit Inhalt an und lehnt leeren Titel ab', () => {
+    expect(runNoteTool('create_note', { title: 'Ideen', content: '# Plan' }).isError).toBe(false)
+    const notes = loadNotes()
+    expect(notes.map((n) => n.title)).toEqual(['Ideen'])
+    expect(notes[0].content).toBe('# Plan')
+    expect(runNoteTool('create_note', { title: '  ' }).isError).toBe(true)
+  })
+
+  it('hängt Text an eine bestehende Notiz an (per Titel gefunden)', () => {
+    runNoteTool('create_note', { title: 'Einkauf', content: 'Milch' })
+    const outcome = runNoteTool('append_to_note', { title: 'einkauf', text: 'Brot' })
+    expect(outcome.isError).toBe(false)
+    expect(loadNotes()[0].content).toBe('Milch\n\nBrot')
+  })
+
+  it('legt bei append_to_note eine neue Notiz an, wenn der Titel fehlt', () => {
+    const outcome = runNoteTool('append_to_note', { title: 'Neu', text: 'Erster Eintrag' })
+    expect(outcome.isError).toBe(false)
+    const notes = loadNotes()
+    expect(notes.map((n) => n.title)).toEqual(['Neu'])
+    expect(notes[0].content).toBe('Erster Eintrag')
+  })
+})
+
 describe('runTool: Dispatcher', () => {
   beforeEach(() => localStorage.clear())
 
-  it('leitet To-do- und Termin-Werkzeuge korrekt weiter', () => {
+  it('leitet To-do-, Termin- und Notiz-Werkzeuge korrekt weiter', () => {
     runTool('add_todo', { text: 'Sport' })
     expect(loadTodos().map((t) => t.text)).toEqual(['Sport'])
     runTool('add_event', { date: '2026-07-16', title: 'Friseur' })
     expect(loadEvents().map((e) => e.title)).toEqual(['Friseur'])
+    runTool('create_note', { title: 'Notiz X' })
+    expect(loadNotes().map((n) => n.title)).toEqual(['Notiz X'])
   })
 })
