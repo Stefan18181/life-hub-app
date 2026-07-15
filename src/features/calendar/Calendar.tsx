@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { isoDate, monthGrid, monthLabel, sameDay } from '../../lib/date'
+import { isoDate, monthGrid, monthLabel, sameDay, weekGrid, weekLabel } from '../../lib/date'
 import {
   addEvent,
   eventsOn,
@@ -11,10 +11,12 @@ import {
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 
+type View = 'month' | 'week'
+
 export default function Calendar() {
   const today = new Date()
-  const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth())
+  const [view, setView] = useState<View>('month')
+  const [cursor, setCursor] = useState<Date>(today)
   const [selected, setSelected] = useState(isoDate(today))
   const [events, setEvents] = useState<CalendarEvent[]>(() => loadEvents())
 
@@ -22,85 +24,66 @@ export default function Calendar() {
     saveEvents(events)
   }, [events])
 
-  const cells = useMemo(() => monthGrid(year, month), [year, month])
-
-  function shiftMonth(delta: number) {
-    const d = new Date(year, month + delta, 1)
-    setYear(d.getFullYear())
-    setMonth(d.getMonth())
+  function shift(delta: number) {
+    setCursor((c) =>
+      view === 'month'
+        ? new Date(c.getFullYear(), c.getMonth() + delta, 1)
+        : new Date(c.getFullYear(), c.getMonth(), c.getDate() + delta * 7),
+    )
   }
 
   function goToday() {
-    setYear(today.getFullYear())
-    setMonth(today.getMonth())
+    setCursor(new Date())
     setSelected(isoDate(today))
   }
+
+  const label = view === 'month' ? monthLabel(cursor.getFullYear(), cursor.getMonth()) : weekLabel(cursor)
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <section className="rounded-xl border border-line bg-card p-4">
-        <header className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-xl text-gold">{monthLabel(year, month)}</h2>
-          <div className="flex gap-1">
-            <NavButton label="Voriger Monat" onClick={() => shiftMonth(-1)}>
-              ‹
-            </NavButton>
-            <NavButton label="Heute" onClick={goToday}>
-              Heute
-            </NavButton>
-            <NavButton label="Nächster Monat" onClick={() => shiftMonth(1)}>
-              ›
-            </NavButton>
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-serif text-lg text-gold sm:text-xl">{label}</h2>
+          <div className="flex items-center gap-2">
+            <div className="flex overflow-hidden rounded-md border border-line">
+              <ViewTab active={view === 'month'} onClick={() => setView('month')}>
+                Monat
+              </ViewTab>
+              <ViewTab active={view === 'week'} onClick={() => setView('week')}>
+                Woche
+              </ViewTab>
+            </div>
+            <div className="flex gap-1">
+              <NavButton label="Zurück" onClick={() => shift(-1)}>
+                ‹
+              </NavButton>
+              <NavButton label="Heute" onClick={goToday}>
+                Heute
+              </NavButton>
+              <NavButton label="Weiter" onClick={() => shift(1)}>
+                ›
+              </NavButton>
+            </div>
           </div>
         </header>
 
-        <div className="grid grid-cols-7 text-center text-xs text-muted">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className="py-1">
-              {d}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-line">
-          {cells.map((day) => {
-            const iso = isoDate(day)
-            const inMonth = day.getMonth() === month
-            const isToday = sameDay(day, today)
-            const isSelected = iso === selected
-            const dayEvents = eventsOn(events, iso)
-            return (
-              <button
-                key={iso}
-                onClick={() => setSelected(iso)}
-                className={
-                  'flex min-h-16 flex-col items-start gap-1 bg-night p-1.5 text-left transition-colors hover:bg-card ' +
-                  (inMonth ? '' : 'opacity-40 ') +
-                  (isSelected ? 'bg-card outline outline-1 -outline-offset-1 outline-gold' : '')
-                }
-              >
-                <span
-                  className={
-                    'text-xs ' +
-                    (isToday
-                      ? 'flex h-5 w-5 items-center justify-center rounded-full bg-gold font-semibold text-night'
-                      : 'text-muted')
-                  }
-                >
-                  {day.getDate()}
-                </span>
-                {dayEvents.slice(0, 2).map((e) => (
-                  <span key={e.id} className="w-full truncate text-[10px] leading-tight text-ink">
-                    <span className="text-gold">•</span> {e.title}
-                  </span>
-                ))}
-                {dayEvents.length > 2 && (
-                  <span className="text-[10px] text-muted">+{dayEvents.length - 2} weitere</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
+        {view === 'month' ? (
+          <MonthView
+            cursor={cursor}
+            today={today}
+            selected={selected}
+            events={events}
+            onSelect={setSelected}
+          />
+        ) : (
+          <WeekView
+            cursor={cursor}
+            today={today}
+            selected={selected}
+            events={events}
+            onSelect={setSelected}
+          />
+        )}
       </section>
 
       <DayPanel
@@ -112,6 +95,135 @@ export default function Calendar() {
         onRemove={(id) => setEvents((prev) => removeEvent(prev, id))}
       />
     </div>
+  )
+}
+
+interface ViewProps {
+  cursor: Date
+  today: Date
+  selected: string
+  events: CalendarEvent[]
+  onSelect: (iso: string) => void
+}
+
+function MonthView({ cursor, today, selected, events, onSelect }: ViewProps) {
+  const month = cursor.getMonth()
+  const cells = useMemo(() => monthGrid(cursor.getFullYear(), month), [cursor, month])
+
+  return (
+    <>
+      <div className="grid grid-cols-7 text-center text-xs text-muted">
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-line">
+        {cells.map((day) => {
+          const iso = isoDate(day)
+          const inMonth = day.getMonth() === month
+          const isToday = sameDay(day, today)
+          const isSelected = iso === selected
+          const dayEvents = eventsOn(events, iso)
+          return (
+            <button
+              key={iso}
+              onClick={() => onSelect(iso)}
+              className={
+                'flex min-h-16 flex-col items-start gap-1 bg-night p-1.5 text-left transition-colors hover:bg-card ' +
+                (inMonth ? '' : 'opacity-40 ') +
+                (isSelected ? 'bg-card outline outline-1 -outline-offset-1 outline-gold' : '')
+              }
+            >
+              <span
+                className={
+                  'text-xs ' +
+                  (isToday
+                    ? 'flex h-5 w-5 items-center justify-center rounded-full bg-gold font-semibold text-night'
+                    : 'text-muted')
+                }
+              >
+                {day.getDate()}
+              </span>
+              {dayEvents.slice(0, 2).map((e) => (
+                <span key={e.id} className="w-full truncate text-[10px] leading-tight text-ink">
+                  <span className="text-gold">•</span> {e.title}
+                </span>
+              ))}
+              {dayEvents.length > 2 && (
+                <span className="text-[10px] text-muted">+{dayEvents.length - 2} weitere</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
+function WeekView({ cursor, today, selected, events, onSelect }: ViewProps) {
+  const days = useMemo(() => weekGrid(cursor), [cursor])
+
+  return (
+    <div className="space-y-px overflow-hidden rounded-lg bg-line">
+      {days.map((day) => {
+        const iso = isoDate(day)
+        const isToday = sameDay(day, today)
+        const isSelected = iso === selected
+        const dayEvents = eventsOn(events, iso)
+        const weekday = day.toLocaleDateString('de-DE', { weekday: 'short' })
+        return (
+          <button
+            key={iso}
+            onClick={() => onSelect(iso)}
+            className={
+              'flex min-h-14 w-full items-start gap-3 bg-night px-3 py-2 text-left transition-colors hover:bg-card ' +
+              (isSelected ? 'outline outline-1 -outline-offset-1 outline-gold' : '')
+            }
+          >
+            <span className="flex w-12 shrink-0 flex-col items-center">
+              <span className="text-[11px] uppercase text-muted">{weekday}</span>
+              <span
+                className={
+                  'flex h-6 w-6 items-center justify-center rounded-full text-sm ' +
+                  (isToday ? 'bg-gold font-semibold text-night' : 'text-ink')
+                }
+              >
+                {day.getDate()}
+              </span>
+            </span>
+            <span className="min-w-0 flex-1 space-y-0.5 py-0.5">
+              {dayEvents.length === 0 ? (
+                <span className="text-xs text-muted">—</span>
+              ) : (
+                dayEvents.map((e) => (
+                  <span key={e.id} className="block truncate text-sm text-ink">
+                    {e.time && <span className="mr-1.5 text-gold">{e.time}</span>}
+                    {e.title}
+                  </span>
+                ))
+              )}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function ViewTab(props: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={props.onClick}
+      className={
+        'px-2.5 py-1 text-sm transition-colors ' +
+        (props.active ? 'bg-gold font-semibold text-night' : 'text-muted hover:text-ink')
+      }
+    >
+      {props.children}
+    </button>
   )
 }
 
