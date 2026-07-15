@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { isoDate } from './date'
 import { addEvent, loadEvents, removeEvent, saveEvents, type CalendarEvent } from './events'
 import type { Note } from './notes'
+import { addTodo, loadTodos, removeTodo, saveTodos, toggleTodo, type Todo } from './todos'
 
 const KEY_STORAGE = 'life-hub.claude-key.v1'
 
@@ -36,6 +37,7 @@ export function buildSystemPrompt(
   events: CalendarEvent[],
   notes: Note[],
   today: Date,
+  todos: Todo[] = [],
 ): string {
   const horizon = new Date(today)
   horizon.setDate(horizon.getDate() + 14)
@@ -55,6 +57,12 @@ export function buildSystemPrompt(
       ? '(keine Notizen vorhanden)'
       : notes.map((n) => `- ${n.title || 'Ohne Titel'}`).join('\n')
 
+  const openTodos = todos.filter((t) => !t.done)
+  const todoLines =
+    openTodos.length === 0
+      ? '(keine offenen To-dos)'
+      : openTodos.map((t) => `- ${t.text}`).join('\n')
+
   const todayLabel = today.toLocaleDateString('de-DE', {
     weekday: 'long',
     day: 'numeric',
@@ -72,9 +80,12 @@ ${eventLines}
 Titel der Notizen des Nutzers:
 ${noteLines}
 
-Beziehe dich auf diese Daten, wenn der Nutzer nach Terminen oder Notizen fragt. Inhalte der Notizen kennst du nicht, nur die Titel.
+Offene To-dos des Nutzers:
+${todoLines}
 
-Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event). Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Angaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Terminen gelöscht werden soll), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen oder gelöscht hast.`
+Beziehe dich auf diese Daten, wenn der Nutzer nach Terminen, Notizen oder To-dos fragt. Inhalte der Notizen kennst du nicht, nur die Titel.
+
+Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event) sowie To-dos anlegen, abhaken und löschen (Werkzeuge add_todo, complete_todo und remove_todo). Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Datumsangaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Einträgen gemeint ist), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen, abgehakt oder gelöscht hast.`
 }
 
 /** Werkzeuge, mit denen Claude den Kalender im Browser verändern darf. */
@@ -178,4 +189,100 @@ export function runEventTool(name: string, input: unknown): ToolOutcome {
   }
 
   return { summary: `Unbekanntes Werkzeug: ${name}`, isError: true }
+}
+
+/** Werkzeuge, mit denen Claude die To-do-Liste im Browser verändern darf. */
+export const TODO_TOOLS: Anthropic.Tool[] = [
+  {
+    name: 'add_todo',
+    description: 'Legt eine neue Aufgabe in der To-do-Liste des Nutzers an.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Kurzer Text der Aufgabe, z. B. "Milch kaufen"' },
+      },
+      required: ['text'],
+    },
+  },
+  {
+    name: 'complete_todo',
+    description:
+      'Hakt offene Aufgaben ab, deren Text den angegebenen Text enthält ' +
+      '(Groß-/Kleinschreibung egal).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Text-Ausschnitt der abzuhakenden Aufgabe(n)' },
+      },
+      required: ['text'],
+    },
+  },
+  {
+    name: 'remove_todo',
+    description:
+      'Löscht Aufgaben, deren Text den angegebenen Text enthält (Groß-/Kleinschreibung egal).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Text-Ausschnitt der zu löschenden Aufgabe(n)' },
+      },
+      required: ['text'],
+    },
+  },
+]
+
+/** Alle Werkzeuge, die Claude im Chat nutzen darf. */
+export const CLAUDE_TOOLS: Anthropic.Tool[] = [...EVENT_TOOLS, ...TODO_TOOLS]
+
+/**
+ * Führt einen von Claude angeforderten To-do-Werkzeugaufruf gegen die lokal
+ * gespeicherten Aufgaben aus (loadTodos/saveTodos im localStorage).
+ */
+export function runTodoTool(name: string, input: unknown): ToolOutcome {
+  const args = (input ?? {}) as Record<string, unknown>
+  const text = typeof args.text === 'string' ? args.text.trim() : ''
+
+  if (name === 'add_todo') {
+    if (!text) {
+      return { summary: 'Fehler: "text" darf nicht leer sein.', isError: true }
+    }
+    saveTodos(addTodo(loadTodos(), text))
+    return { summary: `Aufgabe hinzugefügt: ${text}`, isError: false }
+  }
+
+  if (name === 'complete_todo' || name === 'remove_todo') {
+    if (!text) {
+      return { summary: 'Fehler: "text" darf nicht leer sein.', isError: true }
+    }
+    const filter = text.toLowerCase()
+    const todos = loadTodos()
+    const relevant =
+      name === 'complete_todo'
+        ? todos.filter((t) => !t.done && t.text.toLowerCase().includes(filter))
+        : todos.filter((t) => t.text.toLowerCase().includes(filter))
+
+    if (relevant.length === 0) {
+      const was = name === 'complete_todo' ? 'offene ' : ''
+      return { summary: `Keine passende ${was}Aufgabe für „${text}" gefunden.`, isError: false }
+    }
+
+    const updated = relevant.reduce(
+      (acc, t) => (name === 'complete_todo' ? toggleTodo(acc, t.id) : removeTodo(acc, t.id)),
+      todos,
+    )
+    saveTodos(updated)
+    const verb = name === 'complete_todo' ? 'abgehakt' : 'gelöscht'
+    const list = relevant.map((t) => t.text).join(', ')
+    return { summary: `${relevant.length} Aufgabe(n) ${verb}: ${list}`, isError: false }
+  }
+
+  return { summary: `Unbekanntes Werkzeug: ${name}`, isError: true }
+}
+
+/** Verteilt einen Werkzeugaufruf an die passende Umsetzung (Termine oder To-dos). */
+export function runTool(name: string, input: unknown): ToolOutcome {
+  if (name === 'add_todo' || name === 'complete_todo' || name === 'remove_todo') {
+    return runTodoTool(name, input)
+  }
+  return runEventTool(name, input)
 }

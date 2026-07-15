@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { buildSystemPrompt, runEventTool } from './claude'
+import { buildSystemPrompt, runEventTool, runTodoTool, runTool } from './claude'
 import { loadEvents, saveEvents, type CalendarEvent } from './events'
 import type { Note } from './notes'
+import { loadTodos, saveTodos, type Todo } from './todos'
 
 const today = new Date(2026, 6, 13) // 13. Juli 2026
 
@@ -101,5 +102,49 @@ describe('runEventTool: remove_event', () => {
     const outcome = runEventTool('remove_event', { date: '2026-07-20' })
     expect(outcome.isError).toBe(false)
     expect(loadEvents()).toHaveLength(3)
+  })
+})
+
+describe('runTodoTool', () => {
+  beforeEach(() => localStorage.clear())
+
+  function seed(todos: Todo[]) {
+    saveTodos(todos)
+  }
+
+  it('legt eine Aufgabe an und lehnt leeren Text ab', () => {
+    expect(runTodoTool('add_todo', { text: '  Milch kaufen ' }).isError).toBe(false)
+    expect(loadTodos().map((t) => t.text)).toEqual(['Milch kaufen'])
+    expect(runTodoTool('add_todo', { text: '   ' }).isError).toBe(true)
+    expect(loadTodos()).toHaveLength(1)
+  })
+
+  it('hakt nur offene, passende Aufgaben ab', () => {
+    seed([
+      { id: 'a', text: 'Milch kaufen', done: false, createdAt: '2026-07-13T10:00:00Z' },
+      { id: 'b', text: 'Brot kaufen', done: false, createdAt: '2026-07-13T09:00:00Z' },
+    ])
+    const outcome = runTodoTool('complete_todo', { text: 'milch' })
+    expect(outcome.isError).toBe(false)
+    const byId = Object.fromEntries(loadTodos().map((t) => [t.id, t.done]))
+    expect(byId).toEqual({ a: true, b: false })
+  })
+
+  it('löscht passende Aufgaben und meldet ohne Fehler, wenn nichts passt', () => {
+    seed([{ id: 'a', text: 'Milch kaufen', done: false, createdAt: '2026-07-13T10:00:00Z' }])
+    expect(runTodoTool('remove_todo', { text: 'milch' }).isError).toBe(false)
+    expect(loadTodos()).toEqual([])
+    expect(runTodoTool('remove_todo', { text: 'gibtsnicht' }).isError).toBe(false)
+  })
+})
+
+describe('runTool: Dispatcher', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('leitet To-do- und Termin-Werkzeuge korrekt weiter', () => {
+    runTool('add_todo', { text: 'Sport' })
+    expect(loadTodos().map((t) => t.text)).toEqual(['Sport'])
+    runTool('add_event', { date: '2026-07-16', title: 'Friseur' })
+    expect(loadEvents().map((e) => e.title)).toEqual(['Friseur'])
   })
 })
