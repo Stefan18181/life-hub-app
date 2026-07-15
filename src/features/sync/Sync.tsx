@@ -1,4 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  acquireSyncLock,
+  lastSyncTime,
+  markSynced,
+  releaseSyncLock,
+} from '../../lib/autosync'
 import { loadEvents, saveEvents } from '../../lib/events'
 import {
   clearSyncConfig,
@@ -11,6 +17,7 @@ import {
 } from '../../lib/github'
 import { loadNotes, saveNotes } from '../../lib/notes'
 import { loadTodos, saveTodos } from '../../lib/todos'
+import { AUTO_SYNC_EVENT } from './useAutoBackup'
 
 export default function Sync() {
   const [config, setConfig] = useState<SyncConfig | null>(() => loadSyncConfig())
@@ -21,6 +28,7 @@ export default function Sync() {
   return (
     <SyncPanel
       config={config}
+      onConfig={setConfig}
       onReset={() => {
         clearSyncConfig()
         setConfig(null)
@@ -89,24 +97,38 @@ function SetupForm(props: { onSave: (cfg: SyncConfig) => void }) {
   )
 }
 
-function SyncPanel(props: { config: SyncConfig; onReset: () => void }) {
+function SyncPanel(props: {
+  config: SyncConfig
+  onConfig: (cfg: SyncConfig) => void
+  onReset: () => void
+}) {
   const [busy, setBusy] = useState(false)
   const [log, setLog] = useState<string[]>([])
+  const [syncedAt, setSyncedAt] = useState<string | null>(() => lastSyncTime())
+
+  useEffect(() => {
+    const update = () => setSyncedAt(lastSyncTime())
+    window.addEventListener(AUTO_SYNC_EVENT, update)
+    return () => window.removeEventListener(AUTO_SYNC_EVENT, update)
+  }, [])
 
   function appendLog(line: string) {
     setLog((prev) => [...prev, line])
   }
 
   async function upload() {
-    if (busy) return
+    if (busy || !acquireSyncLock()) return
     setBusy(true)
     setLog([`Lade hoch nach ${props.config.repo} (${props.config.branch}) …`])
     try {
       await uploadAll(props.config, loadEvents(), loadNotes(), loadTodos(), appendLog)
+      markSynced()
+      setSyncedAt(lastSyncTime())
       appendLog('Fertig — alles gesichert. ✓')
     } catch (err) {
       appendLog(`Fehler: ${describeSyncError(err)}`)
     } finally {
+      releaseSyncLock()
       setBusy(false)
     }
   }
@@ -116,7 +138,7 @@ function SyncPanel(props: { config: SyncConfig; onReset: () => void }) {
     const ok = window.confirm(
       'Herunterladen ersetzt deine lokalen Termine, To-dos und Notizen durch den Stand aus dem Repository. Fortfahren?',
     )
-    if (!ok) return
+    if (!ok || !acquireSyncLock()) return
     setBusy(true)
     setLog([`Lade herunter von ${props.config.repo} (${props.config.branch}) …`])
     try {
@@ -124,12 +146,21 @@ function SyncPanel(props: { config: SyncConfig; onReset: () => void }) {
       saveEvents(events)
       saveNotes(notes)
       saveTodos(todos)
+      markSynced() // lokaler Stand entspricht jetzt dem Repo – kein Auto-Upload nötig
+      setSyncedAt(lastSyncTime())
       appendLog('Fertig — lokale Daten aktualisiert. ✓')
     } catch (err) {
       appendLog(`Fehler: ${describeSyncError(err)}`)
     } finally {
+      releaseSyncLock()
       setBusy(false)
     }
+  }
+
+  function toggleAuto() {
+    const next = { ...props.config, auto: !props.config.auto }
+    saveSyncConfig(next)
+    props.onConfig(next)
   }
 
   return (
@@ -166,11 +197,41 @@ function SyncPanel(props: { config: SyncConfig; onReset: () => void }) {
         </button>
       </div>
 
+      <label className="mb-2 flex cursor-pointer items-center gap-3 rounded-md border border-line px-3 py-2.5">
+        <input
+          type="checkbox"
+          checked={props.config.auto ?? false}
+          onChange={toggleAuto}
+          className="h-4 w-4 accent-gold"
+        />
+        <span className="flex-1 text-sm text-ink">
+          Automatisch sichern
+          <span className="block text-xs text-muted">
+            Lädt Änderungen im Hintergrund hoch. Lädt nie automatisch herunter.
+          </span>
+        </span>
+      </label>
+
+      {props.config.auto && (
+        <p className="mb-2 text-xs text-muted">
+          {syncedAt ? `Zuletzt gesichert: ${formatTime(syncedAt)}` : 'Noch nicht gesichert.'}
+        </p>
+      )}
+
       {log.length > 0 && (
-        <pre className="max-h-64 overflow-y-auto rounded-md border border-line bg-night p-3 text-xs leading-relaxed text-muted">
+        <pre className="mt-2 max-h-64 overflow-y-auto rounded-md border border-line bg-night p-3 text-xs leading-relaxed text-muted">
           {log.join('\n')}
         </pre>
       )}
     </div>
   )
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleString('de-DE', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }

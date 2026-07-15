@@ -5,6 +5,7 @@ import Notes from './features/notes/Notes'
 import TopBar from './features/overview/TopBar'
 import Search, { type SearchNav } from './features/search/Search'
 import Sync from './features/sync/Sync'
+import { useAutoBackup } from './features/sync/useAutoBackup'
 import Todos from './features/todos/Todos'
 
 const TABS = ['Kalender', 'To-dos', 'Notizen', 'Claude', 'Suche', 'Sync'] as const
@@ -14,6 +15,9 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('Kalender')
   // Sprungziel aus der Suche; wird beim manuellen Tab-Wechsel wieder verworfen.
   const [nav, setNav] = useState<SearchNav | null>(null)
+
+  // App-weites automatisches Sichern (nur wenn im Sync-Tab aktiviert).
+  useAutoBackup()
 
   function selectTab(t: Tab) {
     setTab(t)

@@ -8,6 +8,8 @@ export interface SyncConfig {
   /** "besitzer/repository" */
   repo: string
   branch: string
+  /** Automatisches Sichern (nur Upload) aktiviert */
+  auto?: boolean
 }
 
 const CONFIG_KEY = 'life-hub.sync.v1'
