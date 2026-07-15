@@ -3,15 +3,16 @@ import { useEffect, useRef, useState } from 'react'
 import {
   buildSystemPrompt,
   CLAUDE_MODEL,
+  CLAUDE_TOOLS,
   clearApiKey,
   createClient,
-  EVENT_TOOLS,
   loadApiKey,
-  runEventTool,
+  runTool,
   saveApiKey,
 } from '../../lib/claude'
 import { loadEvents } from '../../lib/events'
 import { loadNotes } from '../../lib/notes'
+import { loadTodos } from '../../lib/todos'
 
 interface ChatMessage {
   /** 'info' sind Werkzeug-Rückmeldungen (z. B. "Termin hinzugefügt"). */
@@ -117,14 +118,14 @@ function Chat(props: { apiKey: string; onResetKey: () => void }) {
       const client = createClient(props.apiKey)
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-        // Kontext bei jeder Runde neu bauen, damit der Kalender-Stand aktuell ist.
-        const system = buildSystemPrompt(loadEvents(), loadNotes(), new Date())
+        // Kontext bei jeder Runde neu bauen, damit der Stand aktuell ist.
+        const system = buildSystemPrompt(loadEvents(), loadNotes(), new Date(), loadTodos())
         const stream = client.messages.stream({
           model: CLAUDE_MODEL,
           max_tokens: 64000,
           thinking: { type: 'adaptive' },
           system,
-          tools: EVENT_TOOLS,
+          tools: CLAUDE_TOOLS,
           messages: apiHistory.current,
         })
 
@@ -149,7 +150,7 @@ function Chat(props: { apiKey: string; onResetKey: () => void }) {
 
         const results: Anthropic.ToolResultBlockParam[] = []
         for (const use of toolUses) {
-          const outcome = runEventTool(use.name, use.input)
+          const outcome = runTool(use.name, use.input)
           results.push({
             type: 'tool_result',
             tool_use_id: use.id,
