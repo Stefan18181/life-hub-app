@@ -10,9 +10,9 @@ import {
   type Note,
 } from '../../lib/notes'
 
-export default function Notes() {
+export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}) {
   const [notes, setNotes] = useState<Note[]>(() => loadNotes())
-  const [selectedId, setSelectedId] = useState<string | null>(notes[0]?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(initialNoteId ?? notes[0]?.id ?? null)
   const [preview, setPreview] = useState(false)
 
   useEffect(() => {
