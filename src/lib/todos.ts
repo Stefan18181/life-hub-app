@@ -52,6 +52,11 @@ export function removeTodo(todos: Todo[], id: string): Todo[] {
   return todos.filter((t) => t.id !== id)
 }
 
+/** Ändert den Text einer Aufgabe (ID und Status bleiben). */
+export function updateTodo(todos: Todo[], id: string, text: string): Todo[] {
+  return sortTodos(todos.map((t) => (t.id === id ? { ...t, text } : t)))
+}
+
 export function clearCompleted(todos: Todo[]): Todo[] {
   return todos.filter((t) => !t.done)
 }

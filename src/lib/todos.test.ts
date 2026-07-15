@@ -7,8 +7,22 @@ import {
   removeTodo,
   saveTodos,
   toggleTodo,
+  updateTodo,
   type Todo,
 } from './todos'
+
+describe('updateTodo', () => {
+  it('ändert nur den Text und lässt ID und Status unberührt', () => {
+    const todos: Todo[] = [
+      { id: 'a', text: 'Alt', done: true, createdAt: '2026-07-13T10:00:00Z' },
+      { id: 'b', text: 'Andere', done: false, createdAt: '2026-07-13T09:00:00Z' },
+    ]
+    const after = updateTodo(todos, 'a', 'Neu')
+    const a = after.find((t) => t.id === 'a')!
+    expect(a).toEqual({ id: 'a', text: 'Neu', done: true, createdAt: '2026-07-13T10:00:00Z' })
+    expect(after.find((t) => t.id === 'b')?.text).toBe('Andere')
+  })
+})
 
 describe('addTodo / toggleTodo', () => {
   it('legt offene Aufgaben an und schiebt Erledigte ans Ende', () => {

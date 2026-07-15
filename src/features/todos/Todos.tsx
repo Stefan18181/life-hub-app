@@ -7,12 +7,15 @@ import {
   removeTodo,
   saveTodos,
   toggleTodo,
+  updateTodo,
   type Todo,
 } from '../../lib/todos'
 
 export default function Todos({ highlightId }: { highlightId?: string } = {}) {
   const [todos, setTodos] = useState<Todo[]>(() => loadTodos())
   const [input, setInput] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
 
   useEffect(() => {
     saveTodos(todos)
@@ -24,6 +27,24 @@ export default function Todos({ highlightId }: { highlightId?: string } = {}) {
     if (!text) return
     setTodos((prev) => addTodo(prev, text))
     setInput('')
+  }
+
+  function startEdit(todo: Todo) {
+    setEditingId(todo.id)
+    setEditText(todo.text)
+  }
+
+  function commitEdit() {
+    if (editingId === null) return
+    const text = editText.trim()
+    if (text) setTodos((prev) => updateTodo(prev, editingId, text))
+    setEditingId(null)
+    setEditText('')
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditText('')
   }
 
   const open = openCount(todos)
@@ -82,14 +103,39 @@ export default function Todos({ highlightId }: { highlightId?: string } = {}) {
               >
                 ✓
               </button>
-              <span
-                className={
-                  'min-w-0 flex-1 break-words ' +
-                  (todo.done ? 'text-muted line-through' : 'text-ink')
-                }
-              >
-                {todo.text}
-              </span>
+              {editingId === todo.id ? (
+                <input
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onBlur={commitEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit()
+                    else if (e.key === 'Escape') cancelEdit()
+                  }}
+                  autoFocus
+                  aria-label="Aufgabe bearbeiten"
+                  className="min-w-0 flex-1 rounded-md border border-gold bg-night px-2 py-1 text-sm text-ink focus:outline-none"
+                />
+              ) : (
+                <span
+                  onDoubleClick={() => startEdit(todo)}
+                  className={
+                    'min-w-0 flex-1 break-words ' +
+                    (todo.done ? 'text-muted line-through' : 'text-ink')
+                  }
+                >
+                  {todo.text}
+                </span>
+              )}
+              {editingId !== todo.id && (
+                <button
+                  aria-label={`"${todo.text}" bearbeiten`}
+                  onClick={() => startEdit(todo)}
+                  className="shrink-0 text-muted transition-colors hover:text-gold"
+                >
+                  ✎
+                </button>
+              )}
               <button
                 aria-label={`"${todo.text}" löschen`}
                 onClick={() => setTodos((prev) => removeTodo(prev, todo.id))}
