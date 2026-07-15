@@ -13,16 +13,16 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('Kalender')
 
   return (
-    <div className="mx-auto min-h-screen max-w-5xl px-4 pb-12">
-      <header className="flex items-center justify-between py-6">
+    <div className="mx-auto min-h-screen max-w-5xl px-3 pb-12 sm:px-4">
+      <header className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:py-6">
         <h1 className="font-serif text-2xl text-gold">Life Hub</h1>
-        <nav className="flex gap-1 rounded-lg border border-line bg-card p-1">
+        <nav className="-mx-3 flex gap-1 overflow-x-auto px-3 sm:mx-0 sm:rounded-lg sm:border sm:border-line sm:bg-card sm:px-1 sm:py-1">
           {TABS.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={
-                'rounded-md px-3 py-1.5 text-sm transition-colors ' +
+                'shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors ' +
                 (tab === t ? 'bg-gold font-semibold text-night' : 'text-muted hover:text-ink')
               }
             >
