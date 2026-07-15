@@ -4,6 +4,7 @@ import { EVENTS_CHANGED, loadEvents, nextEvent, type CalendarEvent } from '../..
 import {
   dueReminders,
   loadNotifiedIds,
+  reminderKey,
   reminderText,
   saveNotifiedIds,
 } from '../../lib/reminders'
@@ -99,10 +100,11 @@ function useEventNotifications(active: boolean) {
   useEffect(() => {
     if (!active || typeof Notification === 'undefined') return
     const check = () => {
-      const due = dueReminders(loadEvents(), new Date(), LEAD_MS, notified.current)
+      const now = new Date()
+      const due = dueReminders(loadEvents(), now, LEAD_MS, notified.current)
       for (const e of due) {
         new Notification('Life Hub – Termin', { body: reminderText(e) })
-        notified.current.add(e.id)
+        notified.current.add(reminderKey(e, now))
       }
       if (due.length > 0) saveNotifiedIds(notified.current)
     }

@@ -7,7 +7,14 @@ import {
   removeEvent,
   saveEvents,
   type CalendarEvent,
+  type Repeat,
 } from '../../lib/events'
+
+const REPEAT_LABEL: Record<Repeat, string> = {
+  daily: 'täglich',
+  weekly: 'wöchentlich',
+  monthly: 'monatlich',
+}
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 
@@ -89,8 +96,10 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
       <DayPanel
         date={selected}
         events={eventsOn(events, selected)}
-        onAdd={(title, time) =>
-          setEvents((prev) => addEvent(prev, { date: selected, title, time: time || undefined }))
+        onAdd={(title, time, repeat) =>
+          setEvents((prev) =>
+            addEvent(prev, { date: selected, title, time: time || undefined, repeat }),
+          )
         }
         onRemove={(id) => setEvents((prev) => removeEvent(prev, id))}
       />
@@ -242,11 +251,12 @@ function NavButton(props: { label: string; onClick: () => void; children: React.
 function DayPanel(props: {
   date: string
   events: CalendarEvent[]
-  onAdd: (title: string, time: string) => void
+  onAdd: (title: string, time: string, repeat: Repeat | undefined) => void
   onRemove: (id: string) => void
 }) {
   const [title, setTitle] = useState('')
   const [time, setTime] = useState('')
+  const [repeat, setRepeat] = useState<'' | Repeat>('')
 
   const label = new Date(props.date + 'T00:00').toLocaleDateString('de-DE', {
     weekday: 'long',
@@ -258,9 +268,10 @@ function DayPanel(props: {
     e.preventDefault()
     const trimmed = title.trim()
     if (!trimmed) return
-    props.onAdd(trimmed, time)
+    props.onAdd(trimmed, time, repeat || undefined)
     setTitle('')
     setTime('')
+    setRepeat('')
   }
 
   return (
@@ -276,14 +287,19 @@ function DayPanel(props: {
               key={e.id}
               className="flex items-center justify-between gap-2 rounded-md border border-line px-3 py-2 text-sm"
             >
-              <span>
+              <span className="min-w-0">
                 {e.time && <span className="mr-2 text-gold">{e.time}</span>}
                 {e.title}
+                {e.repeat && (
+                  <span className="ml-2 whitespace-nowrap text-xs text-muted">
+                    🔁 {REPEAT_LABEL[e.repeat]}
+                  </span>
+                )}
               </span>
               <button
                 aria-label={`${e.title} löschen`}
                 onClick={() => props.onRemove(e.id)}
-                className="text-muted transition-colors hover:text-gold"
+                className="shrink-0 text-muted transition-colors hover:text-gold"
               >
                 ✕
               </button>
@@ -306,6 +322,17 @@ function DayPanel(props: {
             onChange={(e) => setTime(e.target.value)}
             className="rounded-md border border-line bg-night px-3 py-2 text-sm text-ink focus:border-gold focus:outline-none"
           />
+          <select
+            value={repeat}
+            onChange={(e) => setRepeat(e.target.value as '' | Repeat)}
+            aria-label="Wiederholung"
+            className="rounded-md border border-line bg-night px-2 py-2 text-sm text-ink focus:border-gold focus:outline-none"
+          >
+            <option value="">Einmalig</option>
+            <option value="daily">Täglich</option>
+            <option value="weekly">Wöchentlich</option>
+            <option value="monthly">Monatlich</option>
+          </select>
           <button
             type="submit"
             className="flex-1 rounded-md bg-gold px-3 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90"
