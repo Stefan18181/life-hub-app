@@ -154,7 +154,7 @@ function MonthView({ cursor, today, selected, events, onSelect }: ViewProps) {
                 className={
                   'text-xs ' +
                   (isToday
-                    ? 'flex h-5 w-5 items-center justify-center rounded-full bg-gold font-semibold text-night'
+                    ? 'flex h-5 w-5 items-center justify-center rounded-full bg-gold font-semibold text-accentink'
                     : 'text-muted')
                 }
               >
@@ -201,7 +201,7 @@ function WeekView({ cursor, today, selected, events, onSelect }: ViewProps) {
               <span
                 className={
                   'flex h-6 w-6 items-center justify-center rounded-full text-sm ' +
-                  (isToday ? 'bg-gold font-semibold text-night' : 'text-ink')
+                  (isToday ? 'bg-gold font-semibold text-accentink' : 'text-ink')
                 }
               >
                 {day.getDate()}
@@ -232,7 +232,7 @@ function ViewTab(props: { active: boolean; onClick: () => void; children: React.
       onClick={props.onClick}
       className={
         'px-2.5 py-1 text-sm transition-colors ' +
-        (props.active ? 'bg-gold font-semibold text-night' : 'text-muted hover:text-ink')
+        (props.active ? 'bg-gold font-semibold text-accentink' : 'text-muted hover:text-ink')
       }
     >
       {props.children}
@@ -398,7 +398,7 @@ function DayPanel(props: {
           )}
           <button
             type="submit"
-            className="flex-1 rounded-md bg-gold px-3 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90"
+            className="flex-1 rounded-md bg-gold px-3 py-2 text-sm font-semibold text-accentink transition-opacity hover:opacity-90"
           >
             {editingId ? 'Speichern' : 'Hinzufügen'}
           </button>

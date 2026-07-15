@@ -47,7 +47,7 @@ export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}
           <h2 className="font-serif text-lg text-gold">Notizen</h2>
           <button
             onClick={() => createNote()}
-            className="rounded-md bg-gold px-3 py-1 text-sm font-semibold text-night transition-opacity hover:opacity-90"
+            className="rounded-md bg-gold px-3 py-1 text-sm font-semibold text-accentink transition-opacity hover:opacity-90"
           >
             + Neu
           </button>

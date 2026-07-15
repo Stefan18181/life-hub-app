@@ -69,7 +69,7 @@ export default function Todos({ highlightId }: { highlightId?: string } = {}) {
         <button
           type="submit"
           disabled={input.trim() === ''}
-          className="shrink-0 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="shrink-0 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-accentink transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           Hinzufügen
         </button>
@@ -97,7 +97,7 @@ export default function Todos({ highlightId }: { highlightId?: string } = {}) {
                 className={
                   'flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ' +
                   (todo.done
-                    ? 'border-gold bg-gold text-night'
+                    ? 'border-gold bg-gold text-accentink'
                     : 'border-line text-transparent hover:border-gold')
                 }
               >

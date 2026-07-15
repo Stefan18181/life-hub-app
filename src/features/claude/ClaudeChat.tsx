@@ -69,7 +69,7 @@ function KeySetup(props: { onSave: (key: string) => void }) {
         />
         <button
           type="submit"
-          className="shrink-0 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90"
+          className="shrink-0 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-accentink transition-opacity hover:opacity-90"
         >
           Speichern
         </button>
@@ -246,7 +246,7 @@ function Chat(props: { apiKey: string; onResetKey: () => void }) {
         <button
           type="submit"
           disabled={busy || input.trim() === ''}
-          className="shrink-0 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="shrink-0 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-accentink transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           Senden
         </button>
