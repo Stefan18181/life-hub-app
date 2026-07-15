@@ -1,13 +1,27 @@
 @import "tailwindcss";
 
 @theme {
+  /* Dunkles Edel-Gold-Theme (Standard) */
   --color-night: #0a0a0c;
   --color-card: #141416;
   --color-line: rgba(255, 255, 255, 0.07);
   --color-ink: #e8e6e1;
   --color-muted: #8a8781;
   --color-gold: #d4b477;
+  /* Textfarbe auf goldenen Flächen (Buttons, aktive Tabs, Heute-Kreis) */
+  --color-accentink: #0a0a0c;
   --font-serif: Georgia, "Times New Roman", serif;
+}
+
+/* Helles Theme – überschreibt nur die Farbwerte, die Utilities bleiben gleich */
+:root[data-theme="light"] {
+  --color-night: #f4f0e8;
+  --color-card: #ffffff;
+  --color-line: rgba(0, 0, 0, 0.12);
+  --color-ink: #1c1a17;
+  --color-muted: #6f6b63;
+  --color-gold: #9a6f2e;
+  --color-accentink: #ffffff;
 }
 
 html,

@@ -87,7 +87,7 @@ function SetupForm(props: { onSave: (cfg: SyncConfig) => void }) {
           />
           <button
             type="submit"
-            className="flex-1 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90"
+            className="flex-1 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-accentink transition-opacity hover:opacity-90"
           >
             Speichern
           </button>
@@ -184,14 +184,14 @@ function SyncPanel(props: {
         <button
           onClick={upload}
           disabled={busy}
-          className="flex-1 rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-night transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="flex-1 rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-accentink transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           ↑ Hochladen (lokal → GitHub)
         </button>
         <button
           onClick={download}
           disabled={busy}
-          className="flex-1 rounded-md border border-gold px-4 py-2.5 text-sm font-semibold text-gold transition-colors hover:bg-gold hover:text-night disabled:opacity-40"
+          className="flex-1 rounded-md border border-gold px-4 py-2.5 text-sm font-semibold text-gold transition-colors hover:bg-gold hover:text-accentink disabled:opacity-40"
         >
           ↓ Herunterladen (GitHub → lokal)
         </button>

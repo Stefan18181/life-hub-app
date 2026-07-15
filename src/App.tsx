@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { loadTheme, saveTheme, type Theme } from './lib/theme'
 import Calendar from './features/calendar/Calendar'
 import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
@@ -15,9 +16,16 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('Kalender')
   // Sprungziel aus der Suche; wird beim manuellen Tab-Wechsel wieder verworfen.
   const [nav, setNav] = useState<SearchNav | null>(null)
+  const [theme, setTheme] = useState<Theme>(() => loadTheme())
 
   // App-weites automatisches Sichern (nur wenn im Sync-Tab aktiviert).
   useAutoBackup()
+
+  function toggleTheme() {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    saveTheme(next)
+    setTheme(next)
+  }
 
   function selectTab(t: Tab) {
     setTab(t)
@@ -32,7 +40,17 @@ export default function App() {
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-3 pb-12 sm:px-4">
       <header className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:py-6">
-        <h1 className="font-serif text-2xl text-gold">Life Hub</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-serif text-2xl text-gold">Life Hub</h1>
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Helles Design' : 'Dunkles Design'}
+            title={theme === 'dark' ? 'Helles Design' : 'Dunkles Design'}
+            className="rounded-md border border-line px-2 py-1 text-sm text-muted transition-colors hover:border-gold hover:text-gold"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
         <nav className="-mx-3 flex gap-1 overflow-x-auto px-3 sm:mx-0 sm:rounded-lg sm:border sm:border-line sm:bg-card sm:px-1 sm:py-1">
           {TABS.map((t) => (
             <button
@@ -40,7 +58,7 @@ export default function App() {
               onClick={() => selectTab(t)}
               className={
                 'shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors ' +
-                (tab === t ? 'bg-gold font-semibold text-night' : 'text-muted hover:text-ink')
+                (tab === t ? 'bg-gold font-semibold text-accentink' : 'text-muted hover:text-ink')
               }
             >
               {t}
