@@ -13,11 +13,11 @@ const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 
 type View = 'month' | 'week'
 
-export default function Calendar() {
+export default function Calendar({ initialDate }: { initialDate?: string } = {}) {
   const today = new Date()
   const [view, setView] = useState<View>('month')
-  const [cursor, setCursor] = useState<Date>(today)
-  const [selected, setSelected] = useState(isoDate(today))
+  const [cursor, setCursor] = useState<Date>(initialDate ? new Date(initialDate + 'T00:00') : today)
+  const [selected, setSelected] = useState(initialDate ?? isoDate(today))
   const [events, setEvents] = useState<CalendarEvent[]>(() => loadEvents())
 
   useEffect(() => {

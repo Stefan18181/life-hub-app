@@ -4,7 +4,13 @@ import { loadNotes } from '../../lib/notes'
 import { search, snippet } from '../../lib/search'
 import { loadTodos } from '../../lib/todos'
 
-export default function Search() {
+/** Sprungziel eines Suchtreffers — von der App in den passenden Tab übersetzt. */
+export type SearchNav =
+  | { tab: 'Kalender'; date: string }
+  | { tab: 'To-dos'; todoId: string }
+  | { tab: 'Notizen'; noteId: string }
+
+export default function Search({ onNavigate }: { onNavigate: (nav: SearchNav) => void }) {
   const [query, setQuery] = useState('')
   // Daten einmal je Eingabe laden — die App ist single-user, das reicht.
   const results = useMemo(
@@ -28,37 +34,35 @@ export default function Search() {
           Gib einen Suchbegriff ein, um alles auf einmal zu durchsuchen.
         </p>
       ) : results.total === 0 ? (
-        <p className="mt-6 text-center font-serif text-muted">
-          Keine Treffer für „{q}".
-        </p>
+        <p className="mt-6 text-center font-serif text-muted">Keine Treffer für „{q}".</p>
       ) : (
         <div className="mt-4 space-y-4">
           <Section title="Termine" count={results.events.length}>
             {results.events.map((e) => (
-              <li key={e.id} className="rounded-md border border-line bg-card px-3 py-2 text-sm">
+              <ResultButton key={e.id} onClick={() => onNavigate({ tab: 'Kalender', date: e.date })}>
                 <span className="text-gold">{formatEventDate(e.date)}</span>
                 {e.time && <span className="text-gold"> · {e.time} Uhr</span>} · {e.title}
-              </li>
+              </ResultButton>
             ))}
           </Section>
 
           <Section title="To-dos" count={results.todos.length}>
             {results.todos.map((t) => (
-              <li key={t.id} className="rounded-md border border-line bg-card px-3 py-2 text-sm">
+              <ResultButton key={t.id} onClick={() => onNavigate({ tab: 'To-dos', todoId: t.id })}>
                 <span className={t.done ? 'text-muted line-through' : 'text-ink'}>{t.text}</span>
                 {t.done && <span className="ml-2 text-xs text-muted">erledigt</span>}
-              </li>
+              </ResultButton>
             ))}
           </Section>
 
           <Section title="Notizen" count={results.notes.length}>
             {results.notes.map((n) => (
-              <li key={n.id} className="rounded-md border border-line bg-card px-3 py-2 text-sm">
+              <ResultButton key={n.id} onClick={() => onNavigate({ tab: 'Notizen', noteId: n.id })}>
                 <span className="font-semibold text-ink">{n.title || 'Ohne Titel'}</span>
                 {n.content && (
                   <span className="block truncate text-xs text-muted">{snippet(n.content, q)}</span>
                 )}
-              </li>
+              </ResultButton>
             ))}
           </Section>
         </div>
@@ -76,6 +80,19 @@ function Section(props: { title: string; count: number; children: React.ReactNod
       </h3>
       <ul className="space-y-1">{props.children}</ul>
     </section>
+  )
+}
+
+function ResultButton(props: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <li>
+      <button
+        onClick={props.onClick}
+        className="w-full rounded-md border border-line bg-card px-3 py-2 text-left text-sm transition-colors hover:border-gold"
+      >
+        {props.children}
+      </button>
+    </li>
   )
 }
 

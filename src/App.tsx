@@ -3,7 +3,7 @@ import Calendar from './features/calendar/Calendar'
 import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
 import TopBar from './features/overview/TopBar'
-import Search from './features/search/Search'
+import Search, { type SearchNav } from './features/search/Search'
 import Sync from './features/sync/Sync'
 import Todos from './features/todos/Todos'
 
@@ -12,6 +12,18 @@ type Tab = (typeof TABS)[number]
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('Kalender')
+  // Sprungziel aus der Suche; wird beim manuellen Tab-Wechsel wieder verworfen.
+  const [nav, setNav] = useState<SearchNav | null>(null)
+
+  function selectTab(t: Tab) {
+    setTab(t)
+    setNav(null)
+  }
+
+  function navigateTo(target: SearchNav) {
+    setNav(target)
+    setTab(target.tab)
+  }
 
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-3 pb-12 sm:px-4">
@@ -21,7 +33,7 @@ export default function App() {
           {TABS.map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => selectTab(t)}
               className={
                 'shrink-0 rounded-md px-3 py-1.5 text-sm transition-colors ' +
                 (tab === t ? 'bg-gold font-semibold text-night' : 'text-muted hover:text-ink')
@@ -36,11 +48,26 @@ export default function App() {
       <TopBar />
 
       <main>
-        {tab === 'Kalender' && <Calendar />}
-        {tab === 'To-dos' && <Todos />}
-        {tab === 'Notizen' && <Notes />}
+        {tab === 'Kalender' && (
+          <Calendar
+            key={nav?.tab === 'Kalender' ? nav.date : 'cal'}
+            initialDate={nav?.tab === 'Kalender' ? nav.date : undefined}
+          />
+        )}
+        {tab === 'To-dos' && (
+          <Todos
+            key={nav?.tab === 'To-dos' ? nav.todoId : 'todos'}
+            highlightId={nav?.tab === 'To-dos' ? nav.todoId : undefined}
+          />
+        )}
+        {tab === 'Notizen' && (
+          <Notes
+            key={nav?.tab === 'Notizen' ? nav.noteId : 'notes'}
+            initialNoteId={nav?.tab === 'Notizen' ? nav.noteId : undefined}
+          />
+        )}
         {tab === 'Claude' && <ClaudeChat />}
-        {tab === 'Suche' && <Search />}
+        {tab === 'Suche' && <Search onNavigate={navigateTo} />}
         {tab === 'Sync' && <Sync />}
       </main>
     </div>

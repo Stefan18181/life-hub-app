@@ -10,7 +10,7 @@ import {
   type Todo,
 } from '../../lib/todos'
 
-export default function Todos() {
+export default function Todos({ highlightId }: { highlightId?: string } = {}) {
   const [todos, setTodos] = useState<Todo[]>(() => loadTodos())
   const [input, setInput] = useState('')
 
@@ -63,7 +63,10 @@ export default function Todos() {
           {todos.map((todo) => (
             <li
               key={todo.id}
-              className="flex items-center gap-3 rounded-md border border-line px-3 py-2.5 text-sm"
+              className={
+                'flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm ' +
+                (todo.id === highlightId ? 'border-gold bg-gold/5' : 'border-line')
+              }
             >
               <button
                 role="checkbox"
