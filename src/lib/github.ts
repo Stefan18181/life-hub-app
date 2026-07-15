@@ -1,5 +1,6 @@
 import type { CalendarEvent } from './events'
 import type { Note } from './notes'
+import type { Todo } from './todos'
 
 export interface SyncConfig {
   /** GitHub Personal Access Token (Contents: Read/Write) */
@@ -12,6 +13,7 @@ export interface SyncConfig {
 const CONFIG_KEY = 'life-hub.sync.v1'
 const API = 'https://api.github.com'
 const EVENTS_PATH = 'calendar/events.json'
+const TODOS_PATH = 'todos/todos.json'
 const NOTES_DIR = 'notes'
 
 export function loadSyncConfig(): SyncConfig | null {
@@ -168,11 +170,27 @@ async function listDir(
   return data.filter((e) => e.type === 'file')
 }
 
-/** Lädt Termine und Notizen ins Repo hoch (lokal → GitHub). */
+/** Parst und validiert die To-do-Liste aus dem JSON im Repo. */
+export function parseTodos(json: string): Todo[] {
+  const parsed: unknown = JSON.parse(json)
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter(
+    (t): t is Todo =>
+      typeof t === 'object' &&
+      t !== null &&
+      typeof (t as Todo).id === 'string' &&
+      typeof (t as Todo).text === 'string' &&
+      typeof (t as Todo).done === 'boolean' &&
+      typeof (t as Todo).createdAt === 'string',
+  )
+}
+
+/** Lädt Termine, To-dos und Notizen ins Repo hoch (lokal → GitHub). */
 export async function uploadAll(
   cfg: SyncConfig,
   events: CalendarEvent[],
   notes: Note[],
+  todos: Todo[],
   log: (line: string) => void,
 ): Promise<void> {
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
@@ -181,6 +199,10 @@ export async function uploadAll(
   const existing = await getFile(cfg, EVENTS_PATH)
   await putFile(cfg, EVENTS_PATH, JSON.stringify(events, null, 2) + '\n', message, existing?.sha)
   log(`✓ ${events.length} Termine → ${EVENTS_PATH}`)
+
+  const existingTodos = await getFile(cfg, TODOS_PATH)
+  await putFile(cfg, TODOS_PATH, JSON.stringify(todos, null, 2) + '\n', message, existingTodos?.sha)
+  log(`✓ ${todos.length} To-dos → ${TODOS_PATH}`)
 
   const remote = await listDir(cfg, NOTES_DIR)
   const remoteByName = new Map(remote.map((f) => [f.name, f]))
@@ -199,11 +221,11 @@ export async function uploadAll(
   }
 }
 
-/** Lädt Termine und Notizen aus dem Repo (GitHub → lokal). */
+/** Lädt Termine, To-dos und Notizen aus dem Repo (GitHub → lokal). */
 export async function downloadAll(
   cfg: SyncConfig,
   log: (line: string) => void,
-): Promise<{ events: CalendarEvent[]; notes: Note[] }> {
+): Promise<{ events: CalendarEvent[]; notes: Note[]; todos: Todo[] }> {
   const eventsFile = await getFile(cfg, EVENTS_PATH)
   let events: CalendarEvent[] = []
   if (eventsFile) {
@@ -222,6 +244,15 @@ export async function downloadAll(
     log(`– ${EVENTS_PATH} existiert noch nicht`)
   }
 
+  const todosFile = await getFile(cfg, TODOS_PATH)
+  let todos: Todo[] = []
+  if (todosFile) {
+    todos = parseTodos(todosFile.content)
+    log(`✓ ${todos.length} To-dos geladen`)
+  } else {
+    log(`– ${TODOS_PATH} existiert noch nicht`)
+  }
+
   const notes: Note[] = []
   const remote = await listDir(cfg, NOTES_DIR)
   for (const file of remote) {
@@ -237,5 +268,5 @@ export async function downloadAll(
     log(`✓ Notiz geladen: ${file.name}`)
   }
 
-  return { events, notes }
+  return { events, notes, todos }
 }

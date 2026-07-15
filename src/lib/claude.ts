@@ -1,7 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { isoDate } from './date'
 import { addEvent, loadEvents, removeEvent, saveEvents, type CalendarEvent } from './events'
-import type { Note } from './notes'
+import {
+  addNote,
+  findByTitle,
+  loadNotes,
+  saveNotes,
+  updateNote,
+  type Note,
+} from './notes'
 import { addTodo, loadTodos, removeTodo, saveTodos, toggleTodo, type Todo } from './todos'
 
 const KEY_STORAGE = 'life-hub.claude-key.v1'
@@ -85,7 +92,7 @@ ${todoLines}
 
 Beziehe dich auf diese Daten, wenn der Nutzer nach Terminen, Notizen oder To-dos fragt. Inhalte der Notizen kennst du nicht, nur die Titel.
 
-Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event) sowie To-dos anlegen, abhaken und löschen (Werkzeuge add_todo, complete_todo und remove_todo). Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Datumsangaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Einträgen gemeint ist), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen, abgehakt oder gelöscht hast.`
+Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event), To-dos anlegen, abhaken und löschen (Werkzeuge add_todo, complete_todo und remove_todo) sowie Notizen anlegen und ergänzen (Werkzeuge create_note und append_to_note). Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Datumsangaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Einträgen gemeint ist), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen, abgehakt oder gelöscht hast.`
 }
 
 /** Werkzeuge, mit denen Claude den Kalender im Browser verändern darf. */
@@ -231,8 +238,85 @@ export const TODO_TOOLS: Anthropic.Tool[] = [
   },
 ]
 
+/** Werkzeuge, mit denen Claude Notizen im Browser anlegen und ergänzen darf. */
+export const NOTE_TOOLS: Anthropic.Tool[] = [
+  {
+    name: 'create_note',
+    description: 'Legt eine neue Notiz mit Titel und optionalem Markdown-Inhalt an.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Titel der Notiz' },
+        content: { type: 'string', description: 'Optionaler Markdown-Inhalt der Notiz' },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'append_to_note',
+    description:
+      'Hängt Text an eine bestehende Notiz (per Titel gefunden, Groß-/Kleinschreibung egal) an. ' +
+      'Existiert keine Notiz mit dem Titel, wird eine neue mit diesem Text angelegt.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Titel der Zielnotiz' },
+        text: { type: 'string', description: 'Anzuhängender Markdown-Text' },
+      },
+      required: ['title', 'text'],
+    },
+  },
+]
+
 /** Alle Werkzeuge, die Claude im Chat nutzen darf. */
-export const CLAUDE_TOOLS: Anthropic.Tool[] = [...EVENT_TOOLS, ...TODO_TOOLS]
+export const CLAUDE_TOOLS: Anthropic.Tool[] = [...EVENT_TOOLS, ...TODO_TOOLS, ...NOTE_TOOLS]
+
+/** Legt eine neue Notiz mit Titel und Inhalt an und speichert sie. */
+function createNoteWithContent(title: string, content: string): void {
+  const before = loadNotes()
+  const withNote = addNote(before, title)
+  const created = withNote.find((n) => !before.some((b) => b.id === n.id))
+  saveNotes(created ? updateNote(withNote, created.id, { content }) : withNote)
+}
+
+/**
+ * Führt einen von Claude angeforderten Notiz-Werkzeugaufruf gegen die lokal
+ * gespeicherten Notizen aus (loadNotes/saveNotes im localStorage).
+ */
+export function runNoteTool(name: string, input: unknown): ToolOutcome {
+  const args = (input ?? {}) as Record<string, unknown>
+  const title = typeof args.title === 'string' ? args.title.trim() : ''
+
+  if (name === 'create_note') {
+    if (!title) {
+      return { summary: 'Fehler: "title" darf nicht leer sein.', isError: true }
+    }
+    const content = typeof args.content === 'string' ? args.content : ''
+    createNoteWithContent(title, content)
+    return { summary: `Notiz angelegt: ${title}`, isError: false }
+  }
+
+  if (name === 'append_to_note') {
+    if (!title) {
+      return { summary: 'Fehler: "title" darf nicht leer sein.', isError: true }
+    }
+    const text = typeof args.text === 'string' ? args.text : ''
+    if (!text.trim()) {
+      return { summary: 'Fehler: "text" darf nicht leer sein.', isError: true }
+    }
+    const notes = loadNotes()
+    const existing = findByTitle(notes, title)
+    if (existing) {
+      const sep = existing.content.trim() ? '\n\n' : ''
+      saveNotes(updateNote(notes, existing.id, { content: existing.content + sep + text }))
+      return { summary: `Text an Notiz „${existing.title}" angehängt.`, isError: false }
+    }
+    createNoteWithContent(title, text)
+    return { summary: `Notiz „${title}" gab es noch nicht — neu angelegt.`, isError: false }
+  }
+
+  return { summary: `Unbekanntes Werkzeug: ${name}`, isError: true }
+}
 
 /**
  * Führt einen von Claude angeforderten To-do-Werkzeugaufruf gegen die lokal
@@ -279,10 +363,13 @@ export function runTodoTool(name: string, input: unknown): ToolOutcome {
   return { summary: `Unbekanntes Werkzeug: ${name}`, isError: true }
 }
 
-/** Verteilt einen Werkzeugaufruf an die passende Umsetzung (Termine oder To-dos). */
+/** Verteilt einen Werkzeugaufruf an die passende Umsetzung (Termine, To-dos, Notizen). */
 export function runTool(name: string, input: unknown): ToolOutcome {
   if (name === 'add_todo' || name === 'complete_todo' || name === 'remove_todo') {
     return runTodoTool(name, input)
+  }
+  if (name === 'create_note' || name === 'append_to_note') {
+    return runNoteTool(name, input)
   }
   return runEventTool(name, input)
 }

@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isoDate } from '../../lib/date'
 import { EVENTS_CHANGED, loadEvents, nextEvent, type CalendarEvent } from '../../lib/events'
+import {
+  dueReminders,
+  loadNotifiedIds,
+  reminderText,
+  saveNotifiedIds,
+} from '../../lib/reminders'
 import {
   fetchWeather,
   getPosition,
@@ -75,10 +81,42 @@ function WeatherCard() {
   )
 }
 
+/** Zeitfenster für Erinnerungen und wie oft geprüft wird (App muss geöffnet sein). */
+const LEAD_MS = 30 * 60 * 1000
+const CHECK_INTERVAL_MS = 60 * 1000
+
+type NotifyPermission = 'unsupported' | 'default' | 'granted' | 'denied'
+
+function currentPermission(): NotifyPermission {
+  if (typeof Notification === 'undefined') return 'unsupported'
+  return Notification.permission as NotifyPermission
+}
+
+/** Feuert System-Benachrichtigungen für bald anstehende Termine, solange die App offen ist. */
+function useEventNotifications(active: boolean) {
+  const notified = useRef<Set<string>>(loadNotifiedIds())
+
+  useEffect(() => {
+    if (!active || typeof Notification === 'undefined') return
+    const check = () => {
+      const due = dueReminders(loadEvents(), new Date(), LEAD_MS, notified.current)
+      for (const e of due) {
+        new Notification('Life Hub – Termin', { body: reminderText(e) })
+        notified.current.add(e.id)
+      }
+      if (due.length > 0) saveNotifiedIds(notified.current)
+    }
+    check()
+    const id = window.setInterval(check, CHECK_INTERVAL_MS)
+    return () => window.clearInterval(id)
+  }, [active])
+}
+
 function ReminderCard() {
   const [event, setEvent] = useState<CalendarEvent | null>(() =>
     nextEvent(loadEvents(), isoDate(new Date())),
   )
+  const [permission, setPermission] = useState<NotifyPermission>(() => currentPermission())
 
   useEffect(() => {
     const update = () => setEvent(nextEvent(loadEvents(), isoDate(new Date())))
@@ -91,12 +129,20 @@ function ReminderCard() {
     }
   }, [])
 
+  useEventNotifications(permission === 'granted')
+
+  async function enableNotifications() {
+    if (typeof Notification === 'undefined') return
+    const result = await Notification.requestPermission()
+    setPermission(result as NotifyPermission)
+  }
+
   return (
     <div className="flex items-center gap-3 rounded-xl border border-line bg-card px-4 py-3">
       <span className="text-2xl" aria-hidden>
         🔔
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs uppercase tracking-wide text-muted">Nächster Termin</p>
         {event ? (
           <p className="truncate text-sm text-ink">
@@ -106,6 +152,23 @@ function ReminderCard() {
           <p className="text-sm text-muted">Nichts geplant</p>
         )}
       </div>
+      {permission === 'default' && (
+        <button
+          onClick={enableNotifications}
+          className="shrink-0 rounded-md border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:border-gold hover:text-gold"
+          title="Erinnerungen als Benachrichtigung erhalten, solange Life Hub geöffnet ist"
+        >
+          Erinnern
+        </button>
+      )}
+      {permission === 'granted' && (
+        <span
+          className="shrink-0 text-xs text-gold"
+          title="Benachrichtigungen aktiv, solange Life Hub geöffnet ist"
+        >
+          aktiv
+        </span>
+      )}
     </div>
   )
 }
