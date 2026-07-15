@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   addEvent,
+  addException,
   eventsOn,
   loadEvents,
   nextEvent,
@@ -112,6 +113,24 @@ describe('occursOn', () => {
     expect(occursOn(e, '2026-08-15')).toBe(true)
     expect(occursOn(e, '2026-09-15')).toBe(true)
     expect(occursOn(e, '2026-08-16')).toBe(false)
+  })
+})
+
+describe('Ausnahmen (except)', () => {
+  it('occursOn überspringt ausgenommene Tage', () => {
+    const e: CalendarEvent = { id: 'x', date: '2026-07-15', title: 'Sport', repeat: 'daily', except: ['2026-07-17'] }
+    expect(occursOn(e, '2026-07-16')).toBe(true)
+    expect(occursOn(e, '2026-07-17')).toBe(false) // ausgenommen
+    expect(occursOn(e, '2026-07-18')).toBe(true)
+  })
+
+  it('addException fügt genau einen Tag hinzu (ohne Duplikate)', () => {
+    let events = [ev('2026-07-15', 'Sport', 'daily')]
+    const id = events[0].id
+    events = addException(events, id, '2026-07-17')
+    events = addException(events, id, '2026-07-17') // erneut → kein Duplikat
+    expect(events[0].except).toEqual(['2026-07-17'])
+    expect(nextOccurrence(events[0], '2026-07-17')).toBe('2026-07-18') // springt über die Ausnahme
   })
 })
 

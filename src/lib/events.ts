@@ -14,6 +14,8 @@ export interface CalendarEvent {
   time?: string
   /** Wiederholung, optional */
   repeat?: Repeat
+  /** Ausgenommene Tage (ISO-Daten), an denen eine Wiederholung nicht stattfindet */
+  except?: string[]
 }
 
 const STORAGE_KEY = 'life-hub.events.v1'
@@ -59,6 +61,13 @@ export function removeEvent(events: CalendarEvent[], id: string): CalendarEvent[
   return events.filter((e) => e.id !== id)
 }
 
+/** Nimmt einen einzelnen Tag aus einer wiederkehrenden Serie aus. */
+export function addException(events: CalendarEvent[], id: string, iso: string): CalendarEvent[] {
+  return events.map((e) =>
+    e.id === id ? { ...e, except: [...new Set([...(e.except ?? []), iso])] } : e,
+  )
+}
+
 /** Ersetzt Titel/Uhrzeit/Wiederholung eines Termins (Datum und ID bleiben). */
 export function updateEvent(
   events: CalendarEvent[],
@@ -78,6 +87,7 @@ function daysBetween(fromIso: string, toIso: string): number {
 /** Ob ein (ggf. wiederkehrender) Termin an einem bestimmten Tag stattfindet. */
 export function occursOn(event: CalendarEvent, iso: string): boolean {
   if (iso < event.date) return false
+  if (event.except?.includes(iso)) return false
   if (iso === event.date) return true
   switch (event.repeat) {
     case 'daily':
