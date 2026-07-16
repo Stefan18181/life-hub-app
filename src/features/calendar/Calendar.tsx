@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  categoryName,
+  loadCategoryNames,
+  saveCategoryNames,
+  type CategoryNames,
+} from '../../lib/categories'
 import { EVENT_COLORS, eventColorHex } from '../../lib/colors'
 import { isoDate, monthGrid, monthLabel, sameDay, weekGrid, weekLabel } from '../../lib/date'
 import {
@@ -12,6 +18,11 @@ import {
   type CalendarEvent,
   type Repeat,
 } from '../../lib/events'
+
+/** Farb-Schlüssel eines Termins (Gold ist Standard). */
+function eventColorKey(e: CalendarEvent): string {
+  return e.color ?? 'gold'
+}
 
 const REPEAT_LABEL: Record<Repeat, string> = {
   daily: 'täglich',
@@ -29,10 +40,22 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
   const [cursor, setCursor] = useState<Date>(initialDate ? new Date(initialDate + 'T00:00') : today)
   const [selected, setSelected] = useState(initialDate ?? isoDate(today))
   const [events, setEvents] = useState<CalendarEvent[]>(() => loadEvents())
+  const [catNames, setCatNames] = useState<CategoryNames>(() => loadCategoryNames())
+  const [filter, setFilter] = useState<string | null>(null)
 
   useEffect(() => {
     saveEvents(events)
   }, [events])
+
+  function renameCategory(key: string, name: string) {
+    setCatNames((prev) => {
+      const next = { ...prev, [key]: name }
+      saveCategoryNames(next)
+      return next
+    })
+  }
+
+  const visibleEvents = filter ? events.filter((e) => eventColorKey(e) === filter) : events
 
   function shift(delta: number) {
     setCursor((c) =>
@@ -77,12 +100,19 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
           </div>
         </header>
 
+        <CategoryFilter
+          names={catNames}
+          filter={filter}
+          onFilter={setFilter}
+          onRename={renameCategory}
+        />
+
         {view === 'month' ? (
           <MonthView
             cursor={cursor}
             today={today}
             selected={selected}
-            events={events}
+            events={visibleEvents}
             onSelect={setSelected}
           />
         ) : (
@@ -90,7 +120,7 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
             cursor={cursor}
             today={today}
             selected={selected}
-            events={events}
+            events={visibleEvents}
             onSelect={setSelected}
           />
         )}
@@ -98,10 +128,18 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
 
       <DayPanel
         date={selected}
-        events={eventsOn(events, selected)}
-        onAdd={(title, time, repeat, color) =>
+        events={eventsOn(visibleEvents, selected)}
+        catNames={catNames}
+        onAdd={(title, time, repeat, color, endDate) =>
           setEvents((prev) =>
-            addEvent(prev, { date: selected, title, time: time || undefined, repeat, color }),
+            addEvent(prev, {
+              date: selected,
+              title,
+              time: time || undefined,
+              repeat,
+              color,
+              endDate,
+            }),
           )
         }
         onUpdate={(id, patch) => setEvents((prev) => updateEvent(prev, id, patch))}
@@ -256,13 +294,93 @@ function NavButton(props: { label: string; onClick: () => void; children: React.
   )
 }
 
+function CategoryFilter(props: {
+  names: CategoryNames
+  filter: string | null
+  onFilter: (key: string | null) => void
+  onRename: (key: string, name: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  return (
+    <div className="mb-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <FilterChip active={props.filter === null} onClick={() => props.onFilter(null)}>
+          Alle
+        </FilterChip>
+        {EVENT_COLORS.map((c) => (
+          <FilterChip
+            key={c.key}
+            active={props.filter === c.key}
+            onClick={() => props.onFilter(props.filter === c.key ? null : c.key)}
+          >
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: c.hex }}
+              aria-hidden
+            />
+            {categoryName(props.names, c.key)}
+          </FilterChip>
+        ))}
+        <button
+          onClick={() => setEditing((v) => !v)}
+          aria-label="Kategorien benennen"
+          title="Kategorien benennen"
+          className="ml-auto rounded-md border border-line px-2 py-1 text-xs text-muted transition-colors hover:border-gold hover:text-gold"
+        >
+          ✎
+        </button>
+      </div>
+      {editing && (
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {EVENT_COLORS.map((c) => (
+            <label key={c.key} className="flex items-center gap-2 text-xs">
+              <span
+                className="inline-block h-3 w-3 shrink-0 rounded-full"
+                style={{ backgroundColor: c.hex }}
+                aria-hidden
+              />
+              <input
+                value={categoryName(props.names, c.key)}
+                onChange={(e) => props.onRename(c.key, e.target.value)}
+                aria-label={`Name für ${c.label}`}
+                className="w-full rounded border border-line bg-night px-2 py-1 text-xs focus:border-gold focus:outline-none"
+              />
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilterChip(props: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={props.onClick}
+      className={
+        'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ' +
+        (props.active ? 'border-gold text-gold' : 'border-line text-muted hover:text-ink')
+      }
+    >
+      {props.children}
+    </button>
+  )
+}
+
 function DayPanel(props: {
   date: string
   events: CalendarEvent[]
-  onAdd: (title: string, time: string, repeat: Repeat | undefined, color: string | undefined) => void
+  catNames: CategoryNames
+  onAdd: (
+    title: string,
+    time: string,
+    repeat: Repeat | undefined,
+    color: string | undefined,
+    endDate: string | undefined,
+  ) => void
   onUpdate: (
     id: string,
-    patch: { title: string; time?: string; repeat?: Repeat; color?: string },
+    patch: { title: string; time?: string; repeat?: Repeat; color?: string; endDate?: string },
   ) => void
   onRemove: (id: string) => void
   onRemoveOccurrence: (id: string) => void
@@ -271,6 +389,7 @@ function DayPanel(props: {
   const [time, setTime] = useState('')
   const [repeat, setRepeat] = useState<'' | Repeat>('')
   const [color, setColor] = useState('gold')
+  const [endDate, setEndDate] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Formular zurücksetzen, wenn ein anderer Tag gewählt wird.
@@ -280,6 +399,7 @@ function DayPanel(props: {
     setTime('')
     setRepeat('')
     setColor('gold')
+    setEndDate('')
   }, [props.date])
 
   const label = new Date(props.date + 'T00:00').toLocaleDateString('de-DE', {
@@ -294,6 +414,7 @@ function DayPanel(props: {
     setTime('')
     setRepeat('')
     setColor('gold')
+    setEndDate('')
   }
 
   function startEdit(e: CalendarEvent) {
@@ -302,6 +423,7 @@ function DayPanel(props: {
     setTime(e.time ?? '')
     setRepeat(e.repeat ?? '')
     setColor(e.color ?? 'gold')
+    setEndDate(e.endDate ?? '')
   }
 
   function submit(e: React.FormEvent) {
@@ -309,15 +431,18 @@ function DayPanel(props: {
     const trimmed = title.trim()
     if (!trimmed) return
     const colorValue = color === 'gold' ? undefined : color
+    // Enddatum nur für einmalige Termine und nur, wenn es nach dem Starttag liegt.
+    const endValue = !repeat && endDate && endDate > props.date ? endDate : undefined
     if (editingId) {
       props.onUpdate(editingId, {
         title: trimmed,
         time: time || undefined,
         repeat: repeat || undefined,
         color: colorValue,
+        endDate: endValue,
       })
     } else {
-      props.onAdd(trimmed, time, repeat || undefined, colorValue)
+      props.onAdd(trimmed, time, repeat || undefined, colorValue, endValue)
     }
     resetForm()
   }
@@ -349,6 +474,11 @@ function DayPanel(props: {
                 {e.repeat && (
                   <span className="ml-2 whitespace-nowrap text-xs text-muted">
                     🔁 {REPEAT_LABEL[e.repeat]}
+                  </span>
+                )}
+                {e.endDate && e.endDate > e.date && (
+                  <span className="ml-2 whitespace-nowrap text-xs text-muted">
+                    → bis {formatShort(e.endDate)}
                   </span>
                 )}
               </span>
@@ -396,8 +526,8 @@ function DayPanel(props: {
             <button
               key={c.key}
               type="button"
-              aria-label={`Farbe ${c.label}`}
-              title={c.label}
+              aria-label={`Farbe ${categoryName(props.catNames, c.key)}`}
+              title={categoryName(props.catNames, c.key)}
               onClick={() => setColor(c.key)}
               className={
                 'h-5 w-5 rounded-full transition-transform ' +
@@ -425,6 +555,17 @@ function DayPanel(props: {
             <option value="weekly">Wöchentlich</option>
             <option value="monthly">Monatlich</option>
           </select>
+          {!repeat && (
+            <input
+              type="date"
+              value={endDate}
+              min={props.date}
+              onChange={(e) => setEndDate(e.target.value)}
+              aria-label="Enddatum (mehrtägig)"
+              title="Enddatum – für mehrtägige Termine"
+              className="rounded-md border border-line bg-night px-2 py-2 text-sm text-ink focus:border-gold focus:outline-none"
+            />
+          )}
           {editingId && (
             <button
               type="button"
@@ -444,4 +585,9 @@ function DayPanel(props: {
       </form>
     </section>
   )
+}
+
+/** Kurzes Datum wie "18.7." für die Mehrtages-Anzeige. */
+function formatShort(iso: string): string {
+  return new Date(iso + 'T00:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })
 }

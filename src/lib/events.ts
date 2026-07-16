@@ -7,8 +7,10 @@ export const REPEATS: Repeat[] = ['daily', 'weekly', 'monthly']
 
 export interface CalendarEvent {
   id: string
-  /** ISO-Datum YYYY-MM-DD (Startdatum bei Wiederholung) */
+  /** ISO-Datum YYYY-MM-DD (Startdatum bei Wiederholung/Mehrtages-Termin) */
   date: string
+  /** Enddatum YYYY-MM-DD bei mehrtägigen (einmaligen) Terminen, optional */
+  endDate?: string
   title: string
   /** Uhrzeit HH:MM, optional */
   time?: string
@@ -86,10 +88,14 @@ function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((b.getTime() - a.getTime()) / 86_400_000)
 }
 
-/** Ob ein (ggf. wiederkehrender) Termin an einem bestimmten Tag stattfindet. */
+/** Ob ein (ggf. wiederkehrender oder mehrtägiger) Termin an einem Tag stattfindet. */
 export function occursOn(event: CalendarEvent, iso: string): boolean {
-  if (iso < event.date) return false
   if (event.except?.includes(iso)) return false
+  // Mehrtägiger einmaliger Termin: an jedem Tag der Spanne [date, endDate].
+  if (!event.repeat && event.endDate && event.endDate > event.date) {
+    return iso >= event.date && iso <= event.endDate
+  }
+  if (iso < event.date) return false
   if (iso === event.date) return true
   switch (event.repeat) {
     case 'daily':
@@ -105,7 +111,12 @@ export function occursOn(event: CalendarEvent, iso: string): boolean {
 
 /** Das nächste Datum ab (einschließlich) `fromIso`, an dem der Termin stattfindet, oder null. */
 export function nextOccurrence(event: CalendarEvent, fromIso: string): string | null {
-  if (!event.repeat) return event.date >= fromIso ? event.date : null
+  if (!event.repeat) {
+    const end = event.endDate && event.endDate > event.date ? event.endDate : event.date
+    if (fromIso <= event.date) return event.date
+    if (fromIso <= end) return fromIso
+    return null
+  }
   const start = event.date >= fromIso ? event.date : fromIso
   const d = new Date(start + 'T00:00')
   for (let i = 0; i < 800; i++) {
