@@ -116,6 +116,28 @@ describe('occursOn', () => {
   })
 })
 
+describe('Mehrtägige Termine (endDate)', () => {
+  it('occursOn gilt für jeden Tag der Spanne', () => {
+    const e: CalendarEvent = { id: 'u', date: '2026-07-15', endDate: '2026-07-18', title: 'Urlaub' }
+    expect(occursOn(e, '2026-07-14')).toBe(false)
+    expect(occursOn(e, '2026-07-15')).toBe(true)
+    expect(occursOn(e, '2026-07-17')).toBe(true)
+    expect(occursOn(e, '2026-07-18')).toBe(true)
+    expect(occursOn(e, '2026-07-19')).toBe(false)
+  })
+
+  it('eventsOn zeigt den Termin an allen Tagen der Spanne', () => {
+    const events: CalendarEvent[] = [{ id: 'u', date: '2026-07-15', endDate: '2026-07-17', title: 'Reise' }]
+    expect(eventsOn(events, '2026-07-16').map((e) => e.title)).toEqual(['Reise'])
+  })
+
+  it('nextOccurrence liefert heute, wenn die Spanne heute läuft', () => {
+    const e: CalendarEvent = { id: 'u', date: '2026-07-10', endDate: '2026-07-20', title: 'Messe' }
+    expect(nextOccurrence(e, '2026-07-15')).toBe('2026-07-15')
+    expect(nextOccurrence(e, '2026-07-25')).toBeNull()
+  })
+})
+
 describe('Ausnahmen (except)', () => {
   it('occursOn überspringt ausgenommene Tage', () => {
     const e: CalendarEvent = { id: 'x', date: '2026-07-15', title: 'Sport', repeat: 'daily', except: ['2026-07-17'] }
