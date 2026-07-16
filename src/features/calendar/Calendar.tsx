@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { EVENT_COLORS, eventColorHex } from '../../lib/colors'
 import { isoDate, monthGrid, monthLabel, sameDay, weekGrid, weekLabel } from '../../lib/date'
 import {
   addEvent,
@@ -98,9 +99,9 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
       <DayPanel
         date={selected}
         events={eventsOn(events, selected)}
-        onAdd={(title, time, repeat) =>
+        onAdd={(title, time, repeat, color) =>
           setEvents((prev) =>
-            addEvent(prev, { date: selected, title, time: time || undefined, repeat }),
+            addEvent(prev, { date: selected, title, time: time || undefined, repeat, color }),
           )
         }
         onUpdate={(id, patch) => setEvents((prev) => updateEvent(prev, id, patch))}
@@ -162,7 +163,7 @@ function MonthView({ cursor, today, selected, events, onSelect }: ViewProps) {
               </span>
               {dayEvents.slice(0, 2).map((e) => (
                 <span key={e.id} className="w-full truncate text-[10px] leading-tight text-ink">
-                  <span className="text-gold">•</span> {e.title}
+                  <span style={{ color: eventColorHex(e.color) }}>•</span> {e.title}
                 </span>
               ))}
               {dayEvents.length > 2 && (
@@ -213,6 +214,9 @@ function WeekView({ cursor, today, selected, events, onSelect }: ViewProps) {
               ) : (
                 dayEvents.map((e) => (
                   <span key={e.id} className="block truncate text-sm text-ink">
+                    <span className="mr-1.5" style={{ color: eventColorHex(e.color) }}>
+                      ●
+                    </span>
                     {e.time && <span className="mr-1.5 text-gold">{e.time}</span>}
                     {e.title}
                   </span>
@@ -255,14 +259,18 @@ function NavButton(props: { label: string; onClick: () => void; children: React.
 function DayPanel(props: {
   date: string
   events: CalendarEvent[]
-  onAdd: (title: string, time: string, repeat: Repeat | undefined) => void
-  onUpdate: (id: string, patch: { title: string; time?: string; repeat?: Repeat }) => void
+  onAdd: (title: string, time: string, repeat: Repeat | undefined, color: string | undefined) => void
+  onUpdate: (
+    id: string,
+    patch: { title: string; time?: string; repeat?: Repeat; color?: string },
+  ) => void
   onRemove: (id: string) => void
   onRemoveOccurrence: (id: string) => void
 }) {
   const [title, setTitle] = useState('')
   const [time, setTime] = useState('')
   const [repeat, setRepeat] = useState<'' | Repeat>('')
+  const [color, setColor] = useState('gold')
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Formular zurücksetzen, wenn ein anderer Tag gewählt wird.
@@ -271,6 +279,7 @@ function DayPanel(props: {
     setTitle('')
     setTime('')
     setRepeat('')
+    setColor('gold')
   }, [props.date])
 
   const label = new Date(props.date + 'T00:00').toLocaleDateString('de-DE', {
@@ -284,6 +293,7 @@ function DayPanel(props: {
     setTitle('')
     setTime('')
     setRepeat('')
+    setColor('gold')
   }
 
   function startEdit(e: CalendarEvent) {
@@ -291,16 +301,23 @@ function DayPanel(props: {
     setTitle(e.title)
     setTime(e.time ?? '')
     setRepeat(e.repeat ?? '')
+    setColor(e.color ?? 'gold')
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const trimmed = title.trim()
     if (!trimmed) return
+    const colorValue = color === 'gold' ? undefined : color
     if (editingId) {
-      props.onUpdate(editingId, { title: trimmed, time: time || undefined, repeat: repeat || undefined })
+      props.onUpdate(editingId, {
+        title: trimmed,
+        time: time || undefined,
+        repeat: repeat || undefined,
+        color: colorValue,
+      })
     } else {
-      props.onAdd(trimmed, time, repeat || undefined)
+      props.onAdd(trimmed, time, repeat || undefined, colorValue)
     }
     resetForm()
   }
@@ -322,6 +339,11 @@ function DayPanel(props: {
               }
             >
               <span className="min-w-0">
+                <span
+                  className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
+                  style={{ backgroundColor: eventColorHex(e.color) }}
+                  aria-hidden
+                />
                 {e.time && <span className="mr-2 text-gold">{e.time}</span>}
                 {e.title}
                 {e.repeat && (
@@ -369,6 +391,22 @@ function DayPanel(props: {
           placeholder={editingId ? 'Titel bearbeiten…' : 'Neuer Termin…'}
           className="w-full rounded-md border border-line bg-night px-3 py-2 text-sm placeholder:text-muted focus:border-gold focus:outline-none"
         />
+        <div className="flex items-center gap-2 px-1">
+          {EVENT_COLORS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              aria-label={`Farbe ${c.label}`}
+              title={c.label}
+              onClick={() => setColor(c.key)}
+              className={
+                'h-5 w-5 rounded-full transition-transform ' +
+                (color === c.key ? 'ring-2 ring-offset-2 ring-offset-card ring-ink' : 'hover:scale-110')
+              }
+              style={{ backgroundColor: c.hex }}
+            />
+          ))}
+        </div>
         <div className="flex gap-2">
           <input
             type="time"
