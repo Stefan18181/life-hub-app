@@ -26,10 +26,41 @@ describe('buildSystemPrompt', () => {
       [],
       today,
     )
-    expect(prompt).toContain('2026-07-14 09:30 Uhr: Zahnarzt')
+    expect(prompt).toContain('2026-07-14 (09:30 Uhr): Zahnarzt')
     expect(prompt).toContain('Grenzfall')
     expect(prompt).not.toContain('Gestern')
     expect(prompt).not.toContain('Zu spät')
+  })
+
+  it('zeigt laufende Wiederholungen und Mehrtages-Termine mit Start in der Vergangenheit', () => {
+    const weekly: CalendarEvent = {
+      id: 'w',
+      date: '2026-07-06', // Montag vor "heute" (13.07.)
+      title: 'Yoga',
+      repeat: 'weekly',
+    }
+    const span: CalendarEvent = {
+      id: 's',
+      date: '2026-07-10',
+      endDate: '2026-07-20',
+      title: 'Messe',
+    }
+    const prompt = buildSystemPrompt([weekly, span], [], today)
+    expect(prompt).toContain('2026-07-13 (wiederholt sich wöchentlich): Yoga')
+    expect(prompt).toContain('2026-07-13 (bis 2026-07-20): Messe')
+  })
+
+  it('listet die Kategorien mit Nutzer-Namen und zeigt sie an Terminen', () => {
+    const prompt = buildSystemPrompt(
+      [{ id: 'a', date: '2026-07-14', title: 'Standup', color: 'blue' }],
+      [],
+      today,
+      [],
+      { gold: 'Privat', blue: 'Arbeit', green: 'Grün', red: 'Rot', purple: 'Violett' },
+    )
+    expect(prompt).toContain('- blue = „Arbeit"')
+    expect(prompt).toContain('- gold = „Privat"')
+    expect(prompt).toContain('(Kategorie: Arbeit): Standup')
   })
 
   it('listet Notiz-Titel und markiert leere Zustände', () => {
@@ -73,6 +104,34 @@ describe('runEventTool: add_event', () => {
       true,
     )
     expect(loadEvents()).toEqual([])
+  })
+
+  it('legt mehrtägige Termine mit end_date an und prüft die Spanne', () => {
+    const ok = runEventTool('add_event', {
+      date: '2026-07-20',
+      title: 'Urlaub',
+      end_date: '2026-07-24',
+    })
+    expect(ok.isError).toBe(false)
+    expect(loadEvents()[0].endDate).toBe('2026-07-24')
+    // Enddatum vor/gleich Startdatum → Fehler
+    expect(
+      runEventTool('add_event', { date: '2026-07-20', title: 'X', end_date: '2026-07-20' }).isError,
+    ).toBe(true)
+    expect(
+      runEventTool('add_event', { date: '2026-07-20', title: 'X', end_date: 'quatsch' }).isError,
+    ).toBe(true)
+  })
+
+  it('speichert die Kategorie als color und lehnt unbekannte Kategorien ab', () => {
+    runEventTool('add_event', { date: '2026-07-16', title: 'Standup', category: 'blue' })
+    expect(loadEvents()[0].color).toBe('blue')
+    // gold ist Standard und wird (wie in der UI) nicht gespeichert
+    runEventTool('add_event', { date: '2026-07-17', title: 'Frei', category: 'gold' })
+    expect(loadEvents().find((e) => e.title === 'Frei')?.color).toBeUndefined()
+    const bad = runEventTool('add_event', { date: '2026-07-18', title: 'X', category: 'neon' })
+    expect(bad.isError).toBe(true)
+    expect(bad.summary).toContain('unbekannte Kategorie')
   })
 })
 

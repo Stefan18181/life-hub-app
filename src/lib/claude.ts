@@ -1,6 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { categoryName, defaultCategoryNames, type CategoryNames } from './categories'
+import { EVENT_COLORS } from './colors'
 import { isoDate } from './date'
-import { addEvent, loadEvents, removeEvent, saveEvents, type CalendarEvent } from './events'
+import {
+  addEvent,
+  loadEvents,
+  nextOccurrence,
+  removeEvent,
+  saveEvents,
+  type CalendarEvent,
+} from './events'
 import {
   addNote,
   findByTitle,
@@ -14,6 +23,13 @@ import { addTodo, loadTodos, removeTodo, saveTodos, toggleTodo, type Todo } from
 const KEY_STORAGE = 'life-hub.claude-key.v1'
 
 export const CLAUDE_MODEL = 'claude-opus-4-8'
+
+/** Lesbare Wiederholungs-Angabe für den System-Prompt. */
+const REPEAT_PROMPT: Record<string, string> = {
+  daily: 'täglich',
+  weekly: 'wöchentlich',
+  monthly: 'monatlich',
+}
 
 export function loadApiKey(): string | null {
   return localStorage.getItem(KEY_STORAGE)
@@ -45,19 +61,39 @@ export function buildSystemPrompt(
   notes: Note[],
   today: Date,
   todos: Todo[] = [],
+  catNames: CategoryNames = defaultCategoryNames(),
 ): string {
   const horizon = new Date(today)
   horizon.setDate(horizon.getDate() + 14)
   const from = isoDate(today)
   const to = isoDate(horizon)
 
-  const upcoming = events.filter((e) => e.date >= from && e.date <= to)
+  // nextOccurrence statt e.date, damit laufende Wiederholungen und
+  // Mehrtages-Spannen (Start in der Vergangenheit) sichtbar sind.
+  const upcoming = events
+    .map((e) => ({ event: e, occ: nextOccurrence(e, from) }))
+    .filter((x): x is { event: CalendarEvent; occ: string } => x.occ !== null && x.occ <= to)
+    .sort((a, b) => a.occ.localeCompare(b.occ))
   const eventLines =
     upcoming.length === 0
       ? '(keine Termine in den nächsten 14 Tagen)'
       : upcoming
-          .map((e) => `- ${e.date}${e.time ? ` ${e.time} Uhr` : ''}: ${e.title}`)
+          .map(({ event: e, occ }) => {
+            const extras = [
+              e.time ? `${e.time} Uhr` : '',
+              e.repeat ? `wiederholt sich ${REPEAT_PROMPT[e.repeat]}` : '',
+              e.endDate && e.endDate > e.date ? `bis ${e.endDate}` : '',
+              e.color ? `Kategorie: ${categoryName(catNames, e.color)}` : '',
+            ]
+              .filter(Boolean)
+              .join(', ')
+            return `- ${occ}${extras ? ` (${extras})` : ''}: ${e.title}`
+          })
           .join('\n')
+
+  const categoryLines = EVENT_COLORS.map(
+    (c) => `- ${c.key} = „${categoryName(catNames, c.key)}"`,
+  ).join('\n')
 
   const noteLines =
     notes.length === 0
@@ -90,9 +126,12 @@ ${noteLines}
 Offene To-dos des Nutzers:
 ${todoLines}
 
+Termin-Kategorien (Schlüssel = Name des Nutzers):
+${categoryLines}
+
 Beziehe dich auf diese Daten, wenn der Nutzer nach Terminen, Notizen oder To-dos fragt. Inhalte der Notizen kennst du nicht, nur die Titel.
 
-Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event), To-dos anlegen, abhaken und löschen (Werkzeuge add_todo, complete_todo und remove_todo) sowie Notizen anlegen und ergänzen (Werkzeuge create_note und append_to_note). Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Datumsangaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Einträgen gemeint ist), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen, abgehakt oder gelöscht hast.`
+Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event), To-dos anlegen, abhaken und löschen (Werkzeuge add_todo, complete_todo und remove_todo) sowie Notizen anlegen und ergänzen (Werkzeuge create_note und append_to_note). Beim Anlegen eines Termins kannst du optional eine Kategorie (category, nutze den Schlüssel aus der Liste oben, wenn der Nutzer eine Kategorie nennt) und für mehrtägige Termine ein Enddatum (end_date) angeben. Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Datumsangaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Einträgen gemeint ist), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen, abgehakt oder gelöscht hast.`
 }
 
 /** Werkzeuge, mit denen Claude den Kalender im Browser verändern darf. */
@@ -110,6 +149,17 @@ export const EVENT_TOOLS: Anthropic.Tool[] = [
         time: {
           type: 'string',
           description: 'Optionale Uhrzeit im 24-Stunden-Format HH:MM, z. B. "17:30"',
+        },
+        end_date: {
+          type: 'string',
+          description:
+            'Optionales Enddatum (YYYY-MM-DD) für mehrtägige Termine; muss nach "date" liegen',
+        },
+        category: {
+          type: 'string',
+          enum: EVENT_COLORS.map((c) => c.key),
+          description:
+            'Optionale Kategorie (Schlüssel). Die Namen der Kategorien stehen im System-Prompt.',
         },
       },
       required: ['date', 'title'],
@@ -150,7 +200,8 @@ function isValidTime(value: unknown): value is string {
 }
 
 function formatEvent(e: CalendarEvent): string {
-  return `${e.date}${e.time ? ` ${e.time} Uhr` : ''} – ${e.title}`
+  const span = e.endDate && e.endDate > e.date ? ` bis ${e.endDate}` : ''
+  return `${e.date}${span}${e.time ? ` ${e.time} Uhr` : ''} – ${e.title}`
 }
 
 /**
@@ -172,9 +223,34 @@ export function runEventTool(name: string, input: unknown): ToolOutcome {
       return { summary: 'Fehler: "time" muss im Format HH:MM (24h) vorliegen.', isError: true }
     }
     const time = isValidTime(args.time) ? args.time : undefined
-    const updated = addEvent(loadEvents(), { date: args.date, title, time })
+    if (args.end_date !== undefined && args.end_date !== '') {
+      if (!isIsoDate(args.end_date)) {
+        return { summary: 'Fehler: "end_date" muss im Format YYYY-MM-DD vorliegen.', isError: true }
+      }
+      if (args.end_date <= args.date) {
+        return { summary: 'Fehler: "end_date" muss nach "date" liegen.', isError: true }
+      }
+    }
+    const endDate = isIsoDate(args.end_date) && args.end_date > args.date ? args.end_date : undefined
+    if (
+      args.category !== undefined &&
+      args.category !== '' &&
+      !EVENT_COLORS.some((c) => c.key === args.category)
+    ) {
+      const valid = EVENT_COLORS.map((c) => c.key).join(', ')
+      return { summary: `Fehler: unbekannte Kategorie "${String(args.category)}" (gültig: ${valid}).`, isError: true }
+    }
+    // Gold ist der Standard und wird wie in der UI nicht gespeichert.
+    const color =
+      typeof args.category === 'string' && args.category !== '' && args.category !== 'gold'
+        ? args.category
+        : undefined
+    const updated = addEvent(loadEvents(), { date: args.date, title, time, endDate, color })
     saveEvents(updated)
-    return { summary: `Termin hinzugefügt: ${formatEvent({ id: '', date: args.date, title, time })}`, isError: false }
+    return {
+      summary: `Termin hinzugefügt: ${formatEvent({ id: '', date: args.date, title, time, endDate, color })}`,
+      isError: false,
+    }
   }
 
   if (name === 'remove_event') {
