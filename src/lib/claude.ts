@@ -7,6 +7,7 @@ import {
   loadEvents,
   nextOccurrence,
   removeEvent,
+  REPEAT_LABELS,
   saveEvents,
   type CalendarEvent,
 } from './events'
@@ -23,13 +24,6 @@ import { addTodo, loadTodos, removeTodo, saveTodos, toggleTodo, type Todo } from
 const KEY_STORAGE = 'life-hub.claude-key.v1'
 
 export const CLAUDE_MODEL = 'claude-opus-4-8'
-
-/** Lesbare Wiederholungs-Angabe für den System-Prompt. */
-const REPEAT_PROMPT: Record<string, string> = {
-  daily: 'täglich',
-  weekly: 'wöchentlich',
-  monthly: 'monatlich',
-}
 
 export function loadApiKey(): string | null {
   return localStorage.getItem(KEY_STORAGE)
@@ -81,7 +75,7 @@ export function buildSystemPrompt(
           .map(({ event: e, occ }) => {
             const extras = [
               e.time ? `${e.time} Uhr` : '',
-              e.repeat ? `wiederholt sich ${REPEAT_PROMPT[e.repeat]}` : '',
+              e.repeat ? `wiederholt sich ${REPEAT_LABELS[e.repeat]}` : '',
               e.endDate && e.endDate > e.date ? `bis ${e.endDate}` : '',
               e.color ? `Kategorie: ${categoryName(catNames, e.color)}` : '',
             ]
