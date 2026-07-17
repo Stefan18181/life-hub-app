@@ -10,6 +10,7 @@ import {
   runTool,
   saveApiKey,
 } from '../../lib/claude'
+import { loadCategoryNames } from '../../lib/categories'
 import { loadEvents } from '../../lib/events'
 import { loadNotes } from '../../lib/notes'
 import { loadTodos } from '../../lib/todos'
@@ -119,7 +120,13 @@ function Chat(props: { apiKey: string; onResetKey: () => void }) {
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         // Kontext bei jeder Runde neu bauen, damit der Stand aktuell ist.
-        const system = buildSystemPrompt(loadEvents(), loadNotes(), new Date(), loadTodos())
+        const system = buildSystemPrompt(
+          loadEvents(),
+          loadNotes(),
+          new Date(),
+          loadTodos(),
+          loadCategoryNames(),
+        )
         const stream = client.messages.stream({
           model: CLAUDE_MODEL,
           max_tokens: 64000,
