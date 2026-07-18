@@ -5,6 +5,13 @@ export type Repeat = 'daily' | 'weekly' | 'monthly'
 
 export const REPEATS: Repeat[] = ['daily', 'weekly', 'monthly']
 
+/** Deutsche Labels der Wiederholungs-Rhythmen (UI und Claude-Kontext). */
+export const REPEAT_LABELS: Record<Repeat, string> = {
+  daily: 'täglich',
+  weekly: 'wöchentlich',
+  monthly: 'monatlich',
+}
+
 export interface CalendarEvent {
   id: string
   /** ISO-Datum YYYY-MM-DD (Startdatum bei Wiederholung/Mehrtages-Termin) */

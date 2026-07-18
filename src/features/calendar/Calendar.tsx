@@ -13,6 +13,7 @@ import {
   eventsOn,
   loadEvents,
   removeEvent,
+  REPEAT_LABELS,
   saveEvents,
   updateEvent,
   type CalendarEvent,
@@ -22,12 +23,6 @@ import {
 /** Farb-Schlüssel eines Termins (Gold ist Standard). */
 function eventColorKey(e: CalendarEvent): string {
   return e.color ?? 'gold'
-}
-
-const REPEAT_LABEL: Record<Repeat, string> = {
-  daily: 'täglich',
-  weekly: 'wöchentlich',
-  monthly: 'monatlich',
 }
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -473,7 +468,7 @@ function DayPanel(props: {
                 {e.title}
                 {e.repeat && (
                   <span className="ml-2 whitespace-nowrap text-xs text-muted">
-                    🔁 {REPEAT_LABEL[e.repeat]}
+                    🔁 {REPEAT_LABELS[e.repeat]}
                   </span>
                 )}
                 {e.endDate && e.endDate > e.date && (
