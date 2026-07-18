@@ -7,6 +7,7 @@ import {
 } from '../../lib/categories'
 import { EVENT_COLORS, eventColorHex } from '../../lib/colors'
 import { isoDate, monthGrid, monthLabel, sameDay, weekGrid, weekLabel } from '../../lib/date'
+import { buildICS } from '../../lib/ical'
 import {
   addEvent,
   addException,
@@ -65,6 +66,17 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
     setSelected(isoDate(today))
   }
 
+  /** Lädt alle Termine als iCalendar-Datei herunter (Import in Google/Apple/Outlook). */
+  function exportICS() {
+    const blob = new Blob([buildICS(events)], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'life-hub-kalender.ics'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const label = view === 'month' ? monthLabel(cursor.getFullYear(), cursor.getMonth()) : weekLabel(cursor)
 
   return (
@@ -90,6 +102,9 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
               </NavButton>
               <NavButton label="Weiter" onClick={() => shift(1)}>
                 ›
+              </NavButton>
+              <NavButton label="Als .ics exportieren" onClick={exportICS}>
+                ⤓
               </NavButton>
             </div>
           </div>
