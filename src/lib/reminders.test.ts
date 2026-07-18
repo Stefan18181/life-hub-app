@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { CalendarEvent, Repeat } from './events'
+import type { Todo } from './todos'
 import {
   dueReminders,
+  dueTodoReminders,
   eventStart,
   loadNotifiedIds,
   reminderKey,
   reminderText,
   saveNotifiedIds,
+  todoReminderKey,
+  todoReminderText,
 } from './reminders'
 
 function event(
@@ -60,6 +64,37 @@ describe('reminderText', () => {
   it('nennt Uhrzeit, wenn vorhanden', () => {
     expect(reminderText(event('a', '2026-07-16', 'Friseur', '17:30'))).toBe('17:30 Uhr – Friseur')
     expect(reminderText(event('b', '2026-07-16', 'Geburtstag'))).toBe('Geburtstag')
+  })
+})
+
+describe('dueTodoReminders', () => {
+  const now = new Date('2026-07-16T09:00:00')
+  function todo(id: string, text: string, done: boolean, due?: string): Todo {
+    return { id, text, done, createdAt: '2026-07-01T00:00:00Z', ...(due ? { due } : {}) }
+  }
+
+  it('meldet offene, heute oder früher fällige Aufgaben', () => {
+    const todos = [
+      todo('today', 'Heute fällig', false, '2026-07-16'),
+      todo('overdue', 'Überfällig', false, '2026-07-10'),
+      todo('future', 'Später', false, '2026-07-20'),
+      todo('nodue', 'Ohne Datum', false),
+      todo('done', 'Erledigt', true, '2026-07-16'),
+    ]
+    expect(dueTodoReminders(todos, now, new Set()).map((t) => t.id).sort()).toEqual([
+      'overdue',
+      'today',
+    ])
+  })
+
+  it('überspringt bereits (heute) benachrichtigte Aufgaben', () => {
+    const t = todo('today', 'Heute fällig', false, '2026-07-16')
+    expect(dueTodoReminders([t], now, new Set([todoReminderKey(t, now)]))).toEqual([])
+  })
+
+  it('todoReminderText unterscheidet fällig heute und überfällig', () => {
+    expect(todoReminderText(todo('a', 'Zahlen', false, '2026-07-16'), now)).toBe('Fällig heute: Zahlen')
+    expect(todoReminderText(todo('b', 'Zahlen', false, '2026-07-10'), now)).toBe('Überfällig: Zahlen')
   })
 })
 

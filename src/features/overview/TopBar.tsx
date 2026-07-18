@@ -3,11 +3,15 @@ import { isoDate } from '../../lib/date'
 import { EVENTS_CHANGED, loadEvents, nextEvent, type CalendarEvent } from '../../lib/events'
 import {
   dueReminders,
+  dueTodoReminders,
   loadNotifiedIds,
   reminderKey,
   reminderText,
   saveNotifiedIds,
+  todoReminderKey,
+  todoReminderText,
 } from '../../lib/reminders'
+import { loadTodos } from '../../lib/todos'
 import {
   fetchWeather,
   getPosition,
@@ -93,7 +97,10 @@ function currentPermission(): NotifyPermission {
   return Notification.permission as NotifyPermission
 }
 
-/** Feuert System-Benachrichtigungen für bald anstehende Termine, solange die App offen ist. */
+/**
+ * Feuert System-Benachrichtigungen für bald anstehende Termine und heute
+ * fällige To-dos, solange die App offen ist.
+ */
 function useEventNotifications(active: boolean) {
   const notified = useRef<Set<string>>(loadNotifiedIds())
 
@@ -101,12 +108,21 @@ function useEventNotifications(active: boolean) {
     if (!active || typeof Notification === 'undefined') return
     const check = () => {
       const now = new Date()
-      const due = dueReminders(loadEvents(), now, LEAD_MS, notified.current)
-      for (const e of due) {
+      let changed = false
+
+      for (const e of dueReminders(loadEvents(), now, LEAD_MS, notified.current)) {
         new Notification('Life Hub – Termin', { body: reminderText(e) })
         notified.current.add(reminderKey(e, now))
+        changed = true
       }
-      if (due.length > 0) saveNotifiedIds(notified.current)
+
+      for (const t of dueTodoReminders(loadTodos(), now, notified.current)) {
+        new Notification('Life Hub – Aufgabe', { body: todoReminderText(t, now) })
+        notified.current.add(todoReminderKey(t, now))
+        changed = true
+      }
+
+      if (changed) saveNotifiedIds(notified.current)
     }
     check()
     const id = window.setInterval(check, CHECK_INTERVAL_MS)
