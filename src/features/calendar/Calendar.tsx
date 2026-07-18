@@ -20,6 +20,7 @@ import {
   type CalendarEvent,
   type Repeat,
 } from '../../lib/events'
+import { loadTodos, saveTodos, toggleTodo, type Todo } from '../../lib/todos'
 
 /** Farb-Schlüssel eines Termins (Gold ist Standard). */
 function eventColorKey(e: CalendarEvent): string {
@@ -39,11 +40,16 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
   const [catNames, setCatNames] = useState<CategoryNames>(() => loadCategoryNames())
   const [filter, setFilter] = useState<string | null>(null)
   const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [todos, setTodos] = useState<Todo[]>(() => loadTodos())
   const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     saveEvents(events)
   }, [events])
+
+  useEffect(() => {
+    saveTodos(todos)
+  }, [todos])
 
   function renameCategory(key: string, name: string) {
     setCatNames((prev) => {
@@ -183,6 +189,8 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
       <DayPanel
         date={selected}
         events={eventsOn(visibleEvents, selected)}
+        todos={todos.filter((t) => t.due === selected)}
+        onToggleTodo={(id) => setTodos((prev) => toggleTodo(prev, id))}
         catNames={catNames}
         onAdd={(title, time, repeat, color, endDate) =>
           setEvents((prev) =>
@@ -424,6 +432,8 @@ function FilterChip(props: { active: boolean; onClick: () => void; children: Rea
 function DayPanel(props: {
   date: string
   events: CalendarEvent[]
+  todos: Todo[]
+  onToggleTodo: (id: string) => void
   catNames: CategoryNames
   onAdd: (
     title: string,
@@ -566,6 +576,49 @@ function DayPanel(props: {
             </li>
           ))}
         </ul>
+      )}
+
+      {props.todos.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted">Fällige To-dos</p>
+          <ul className="space-y-1.5">
+            {props.todos.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center gap-2.5 rounded-md border border-line px-3 py-2 text-sm"
+              >
+                <button
+                  role="checkbox"
+                  aria-checked={t.done}
+                  aria-label={
+                    t.repeat
+                      ? `"${t.text}" erledigen – wiederholt sich`
+                      : t.done
+                        ? `"${t.text}" als offen markieren`
+                        : `"${t.text}" als erledigt markieren`
+                  }
+                  onClick={() => props.onToggleTodo(t.id)}
+                  className={
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] transition-colors ' +
+                    (t.done
+                      ? 'border-gold bg-gold text-accentink'
+                      : 'border-line text-transparent hover:border-gold')
+                  }
+                >
+                  ✓
+                </button>
+                <span className={'min-w-0 flex-1 break-words ' + (t.done ? 'text-muted line-through' : 'text-ink')}>
+                  {t.text}
+                </span>
+                {t.repeat && (
+                  <span className="shrink-0 whitespace-nowrap text-xs text-muted">
+                    🔁 {REPEAT_LABELS[t.repeat]}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <form onSubmit={submit} className="space-y-2">
