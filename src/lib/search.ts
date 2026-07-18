@@ -1,5 +1,5 @@
 import type { CalendarEvent } from './events'
-import type { Note } from './notes'
+import { extractTags, type Note } from './notes'
 import type { Todo } from './todos'
 
 export interface SearchData {
@@ -18,10 +18,20 @@ export interface SearchResults {
 /**
  * Durchsucht Termine (Titel), To-dos (Text) und Notizen (Titel + Inhalt)
  * nach einem Suchbegriff (Groß-/Kleinschreibung egal). Leere Anfrage → keine Treffer.
+ * Beginnt die Anfrage mit „#", wird gezielt nach Notiz-Tags gesucht.
  */
 export function search(query: string, data: SearchData): SearchResults {
   const q = query.trim().toLowerCase()
   if (!q) return { events: [], todos: [], notes: [], total: 0 }
+
+  // Tag-Suche: „#arbeit" findet nur Notizen mit passendem Tag.
+  if (q.startsWith('#')) {
+    const tagQ = q.slice(1)
+    const notes = tagQ
+      ? data.notes.filter((n) => extractTags(n.content).some((t) => t.includes(tagQ)))
+      : []
+    return { events: [], todos: [], notes, total: notes.length }
+  }
 
   const events = data.events.filter((e) => e.title.toLowerCase().includes(q))
   const todos = data.todos.filter((t) => t.text.toLowerCase().includes(q))
