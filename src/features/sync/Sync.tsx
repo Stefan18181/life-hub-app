@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   acquireSyncLock,
   lastSyncTime,
   markSynced,
   releaseSyncLock,
 } from '../../lib/autosync'
+import { applyBackup, parseBackup, serializeBackup } from '../../lib/backup'
 import { loadEvents, saveEvents } from '../../lib/events'
 import {
   clearSyncConfig,
@@ -22,18 +23,95 @@ import { AUTO_SYNC_EVENT } from './useAutoBackup'
 export default function Sync() {
   const [config, setConfig] = useState<SyncConfig | null>(() => loadSyncConfig())
 
-  if (!config) {
-    return <SetupForm onSave={setConfig} />
-  }
   return (
-    <SyncPanel
-      config={config}
-      onConfig={setConfig}
-      onReset={() => {
-        clearSyncConfig()
-        setConfig(null)
-      }}
-    />
+    <div className="mx-auto max-w-2xl space-y-4">
+      {config ? (
+        <SyncPanel
+          config={config}
+          onConfig={setConfig}
+          onReset={() => {
+            clearSyncConfig()
+            setConfig(null)
+          }}
+        />
+      ) : (
+        <SetupForm onSave={setConfig} />
+      )}
+      <LocalBackup />
+    </div>
+  )
+}
+
+/** Export/Import aller Daten als eine JSON-Datei – unabhängig vom Git-Sync. */
+function LocalBackup() {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [status, setStatus] = useState<string | null>(null)
+
+  function exportFile() {
+    const stamp = new Date().toISOString().slice(0, 10)
+    const blob = new Blob([serializeBackup()], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `life-hub-backup-${stamp}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setStatus('Sicherung heruntergeladen.')
+  }
+
+  async function importFile(file: File) {
+    try {
+      const data = parseBackup(await file.text())
+      const ok = window.confirm(
+        `Import ersetzt alle lokalen Daten durch die Sicherung ` +
+          `(${data.events.length} Termine, ${data.todos.length} To-dos, ${data.notes.length} Notizen). Fortfahren?`,
+      )
+      if (!ok) return
+      const r = applyBackup(data)
+      setStatus(`Importiert: ${r.events} Termine, ${r.todos} To-dos, ${r.notes} Notizen. Bitte App neu laden.`)
+    } catch (err) {
+      setStatus(err instanceof Error ? `Fehler: ${err.message}` : 'Import fehlgeschlagen.')
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-line bg-card p-6">
+      <h2 className="mb-2 font-serif text-xl text-gold">Lokale Sicherung</h2>
+      <p className="mb-4 text-sm text-muted">
+        Exportiere alle Daten (Termine, To-dos, Notizen, Kategorien) als eine JSON-Datei oder stelle
+        sie aus einer solchen Datei wieder her — ganz ohne GitHub.
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={exportFile}
+          className="flex-1 rounded-md bg-gold px-4 py-2.5 text-sm font-semibold text-accentink transition-opacity hover:opacity-90"
+        >
+          ⤓ Exportieren
+        </button>
+        <button
+          onClick={() => fileInput.current?.click()}
+          className="flex-1 rounded-md border border-gold px-4 py-2.5 text-sm font-semibold text-gold transition-colors hover:bg-gold hover:text-accentink"
+        >
+          ⤒ Importieren
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void importFile(file)
+            e.target.value = ''
+          }}
+        />
+      </div>
+      {status && (
+        <p className="mt-3 rounded-md border border-line bg-night px-3 py-2 text-sm text-muted" role="status">
+          {status}
+        </p>
+      )}
+    </div>
   )
 }
 

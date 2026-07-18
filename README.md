@@ -16,6 +16,7 @@ Dein persönlicher Hub für Kalender, To-dos, Notizen und Claude — als install
 - **Kopfleiste** — aktuelles Wetter (Open-Meteo, Standort per Browser) und der nächste anstehende Termin.
 - **Erinnerungen** — opt-in Browser-Benachrichtigung für Termine, die innerhalb von 30 Minuten anstehen (solange die App geöffnet ist), auch für Wiederholungen, sowie für heute fällige und überfällige To-dos.
 - **Git-Sync** — sichert Notizen als Markdown-Dateien (Obsidian-kompatibel) sowie Termine und To-dos als JSON in ein GitHub-Repo. Manuell per Knopf oder **automatisch im Hintergrund** (opt-in, lädt nie automatisch herunter).
+- **Lokale Sicherung** — exportiert alle Daten (Termine, To-dos, Notizen, Kategorien) als eine JSON-Datei und stellt sie daraus wieder her — ganz ohne GitHub.
 - **PWA** — installierbar aufs Handy/Desktop, funktioniert offline. Alle Daten werden lokal im Browser gespeichert.
 - **Dark/Light-Theme** — umschaltbar in der Kopfzeile, folgt initial der System-Einstellung.
 
