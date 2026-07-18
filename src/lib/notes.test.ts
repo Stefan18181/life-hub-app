@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   addNote,
+  allTags,
   backlinks,
+  extractTags,
   extractWikiLinks,
   findByTitle,
   loadNotes,
@@ -67,6 +69,29 @@ describe('backlinks', () => {
     expect(backlinks([self], self)).toEqual([])
     const empty = note('e', '   ', 'egal')
     expect(backlinks([empty, note('x', 'X', '[[ ]]')], empty)).toEqual([])
+  })
+})
+
+describe('extractTags / allTags', () => {
+  it('findet #tags klein geschrieben ohne Duplikate', () => {
+    expect(extractTags('Zu #Arbeit und #privat, nochmal #arbeit.')).toEqual(['arbeit', 'privat'])
+  })
+
+  it('ignoriert Markdown-Überschriften und Tags mitten im Wort', () => {
+    expect(extractTags('# Überschrift\n## Zweite\nfoo#bar test')).toEqual([])
+    expect(extractTags('Start #ziel am Zeilenanfang')).toEqual(['ziel'])
+  })
+
+  it('erlaubt Umlaute, Ziffern und Schrägstriche im Tag', () => {
+    expect(extractTags('#gesundheit/sport und #woche42')).toEqual(['gesundheit/sport', 'woche42'])
+  })
+
+  it('allTags sammelt und sortiert über alle Notizen', () => {
+    const notes: Note[] = [
+      { id: 'a', title: 'A', content: '#zebra #anfang', updatedAt: '2026-07-01T00:00:00Z' },
+      { id: 'b', title: 'B', content: '#mitte #anfang', updatedAt: '2026-07-01T00:00:00Z' },
+    ]
+    expect(allTags(notes)).toEqual(['anfang', 'mitte', 'zebra'])
   })
 })
 
