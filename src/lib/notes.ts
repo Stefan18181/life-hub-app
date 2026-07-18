@@ -75,6 +75,20 @@ export function extractWikiLinks(content: string): string[] {
   return [...targets]
 }
 
+/**
+ * Notizen, die per [[Wikilink]] auf die Zielnotiz verweisen
+ * (Vergleich über den Titel, ohne Selbstbezug).
+ */
+export function backlinks(notes: Note[], target: Note): Note[] {
+  const title = target.title.trim().toLowerCase()
+  if (!title) return []
+  return notes.filter(
+    (n) =>
+      n.id !== target.id &&
+      extractWikiLinks(n.content).some((link) => link.trim().toLowerCase() === title),
+  )
+}
+
 function sortNotes(notes: Note[]): Note[] {
   return [...notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
