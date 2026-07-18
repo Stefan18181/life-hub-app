@@ -6,7 +6,7 @@ Dein persönlicher Hub für Kalender, To-dos, Notizen und Claude — als install
 
 ## Features
 
-- **Kalender** — Monats- und Wochenansicht (Wochenstart Montag). Termine mit optionaler Uhrzeit, **mehrtägig** (Enddatum), **wiederkehrend** (täglich/wöchentlich/monatlich, einzelne Tage ausnehmbar), **bearbeitbar** und mit **Farb-Kategorien** (frei benennbar, als Filter nutzbar).
+- **Kalender** — Monats- und Wochenansicht (Wochenstart Montag). Termine mit optionaler Uhrzeit, **mehrtägig** (Enddatum), **wiederkehrend** (täglich/wöchentlich/monatlich, einzelne Tage ausnehmbar), **bearbeitbar** und mit **Farb-Kategorien** (frei benennbar, als Filter nutzbar). **.ics-Export und -Import** zum Austausch mit Google/Apple/Outlook (Duplikate werden beim Import übersprungen).
 - **To-dos** — Aufgaben anlegen, abhaken, löschen; Erledigte auf einen Klick aufräumen.
 - **Notizen** — Markdown-Editor mit Vorschau und Obsidian-kompatiblen `[[Wikilinks]]` zwischen Notizen.
 - **Claude-Chat** — Direkter Chat mit Claude aus dem Browser. Claude kennt Termine (inkl. Kategorien, Wiederholungen, Zeitspannen), Notiz-Titel und offene To-dos als Kontext und kann per Chat Termine anlegen/löschen (auch mehrtägig und mit Kategorie), To-dos verwalten und Notizen anlegen/ergänzen — z. B. „Trag Urlaub von Montag bis Freitag ein, Kategorie Arbeit". Der Anthropic-API-Key bleibt lokal im Browser.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   categoryName,
   loadCategoryNames,
@@ -7,7 +7,7 @@ import {
 } from '../../lib/categories'
 import { EVENT_COLORS, eventColorHex } from '../../lib/colors'
 import { isoDate, monthGrid, monthLabel, sameDay, weekGrid, weekLabel } from '../../lib/date'
-import { buildICS } from '../../lib/ical'
+import { buildICS, parseICS } from '../../lib/ical'
 import {
   addEvent,
   addException,
@@ -38,6 +38,8 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
   const [events, setEvents] = useState<CalendarEvent[]>(() => loadEvents())
   const [catNames, setCatNames] = useState<CategoryNames>(() => loadCategoryNames())
   const [filter, setFilter] = useState<string | null>(null)
+  const [importStatus, setImportStatus] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     saveEvents(events)
@@ -77,6 +79,29 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
     URL.revokeObjectURL(url)
   }
 
+  /** Liest eine .ics-Datei ein und übernimmt neue Termine (Duplikate werden übersprungen). */
+  async function importICS(file: File) {
+    try {
+      const parsed = parseICS(await file.text())
+      if (!parsed.length) {
+        setImportStatus('Keine Termine in der Datei gefunden.')
+        return
+      }
+      const key = (e: CalendarEvent) => `${e.date}|${e.time ?? ''}|${e.title}`
+      const seen = new Set(events.map(key))
+      const fresh = parsed.filter((e) => !seen.has(key(e)))
+      const skipped = parsed.length - fresh.length
+      if (fresh.length) setEvents((prev) => [...prev, ...fresh])
+      setImportStatus(
+        `${fresh.length} Termin${fresh.length === 1 ? '' : 'e'} importiert` +
+          (skipped ? `, ${skipped} bereits vorhanden` : '') +
+          '.',
+      )
+    } catch {
+      setImportStatus('Datei konnte nicht gelesen werden.')
+    }
+  }
+
   const label = view === 'month' ? monthLabel(cursor.getFullYear(), cursor.getMonth()) : weekLabel(cursor)
 
   return (
@@ -106,9 +131,28 @@ export default function Calendar({ initialDate }: { initialDate?: string } = {})
               <NavButton label="Als .ics exportieren" onClick={exportICS}>
                 ⤓
               </NavButton>
+              <NavButton label=".ics importieren" onClick={() => fileInput.current?.click()}>
+                ⤒
+              </NavButton>
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".ics,text/calendar"
+                className="hidden"
+                onChange={(ev) => {
+                  const file = ev.target.files?.[0]
+                  if (file) void importICS(file)
+                  ev.target.value = ''
+                }}
+              />
             </div>
           </div>
         </header>
+        {importStatus && (
+          <p className="mb-3 rounded-md border border-line bg-night/40 px-3 py-2 text-sm text-muted" role="status">
+            {importStatus}
+          </p>
+        )}
 
         <CategoryFilter
           names={catNames}
