@@ -12,7 +12,7 @@ Dein persönlicher Hub für Kalender, To-dos, Notizen und Claude — als install
 - **Claude-Chat** — Direkter Chat mit Claude aus dem Browser. Claude kennt Termine (inkl. Kategorien, Wiederholungen, Zeitspannen), Notiz-Titel und offene To-dos als Kontext und kann per Chat Termine anlegen/löschen (auch mehrtägig und mit Kategorie), To-dos verwalten (auch mit Fälligkeit und wiederkehrend) und Notizen anlegen/ergänzen — z. B. „Trag Urlaub von Montag bis Freitag ein, Kategorie Arbeit" oder „erinnere mich jeden Freitag ans Gießen". Der Anthropic-API-Key bleibt lokal im Browser.
 - **Globale Suche** — durchsucht Termine, To-dos und Notizen auf einmal; ein Klick auf einen Treffer springt direkt zum Eintrag.
 - **Kopfleiste** — aktuelles Wetter (Open-Meteo, Standort per Browser) und der nächste anstehende Termin.
-- **Erinnerungen** — opt-in Browser-Benachrichtigung für Termine, die innerhalb von 30 Minuten anstehen (solange die App geöffnet ist), auch für Wiederholungen.
+- **Erinnerungen** — opt-in Browser-Benachrichtigung für Termine, die innerhalb von 30 Minuten anstehen (solange die App geöffnet ist), auch für Wiederholungen, sowie für heute fällige und überfällige To-dos.
 - **Git-Sync** — sichert Notizen als Markdown-Dateien (Obsidian-kompatibel) sowie Termine und To-dos als JSON in ein GitHub-Repo. Manuell per Knopf oder **automatisch im Hintergrund** (opt-in, lädt nie automatisch herunter).
 - **PWA** — installierbar aufs Handy/Desktop, funktioniert offline. Alle Daten werden lokal im Browser gespeichert.
 - **Dark/Light-Theme** — umschaltbar in der Kopfzeile, folgt initial der System-Einstellung.

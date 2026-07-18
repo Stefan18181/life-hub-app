@@ -1,5 +1,6 @@
 import { isoDate } from './date'
 import { occursOn, type CalendarEvent } from './events'
+import type { Todo } from './todos'
 
 /** Kombiniert Datum + Uhrzeit eines Termins zu einem lokalen Date; null ohne (gültige) Uhrzeit. */
 export function eventStart(event: CalendarEvent): Date | null {
@@ -39,6 +40,36 @@ export function dueReminders(
 /** Kurzer Text für den Benachrichtigungs-Body. */
 export function reminderText(event: CalendarEvent): string {
   return event.time ? `${event.time} Uhr – ${event.title}` : event.title
+}
+
+/** Dedup-Schlüssel je Aufgabe und Tag (überfällige erinnern an jedem neuen Tag erneut). */
+export function todoReminderKey(todo: Todo, now: Date): string {
+  return `todo:${todo.id}@${isoDate(now)}`
+}
+
+/**
+ * Offene To-dos, die heute (oder früher) fällig sind und für heute noch nicht
+ * benachrichtigt wurden — Kandidaten für eine Fälligkeits-Erinnerung.
+ */
+export function dueTodoReminders(
+  todos: Todo[],
+  now: Date,
+  notified: ReadonlySet<string>,
+): Todo[] {
+  const todayIso = isoDate(now)
+  return todos.filter(
+    (t) =>
+      !t.done &&
+      t.due !== undefined &&
+      t.due <= todayIso &&
+      !notified.has(todoReminderKey(t, now)),
+  )
+}
+
+/** Kurzer Text für die To-do-Benachrichtigung (unterscheidet fällig heute / überfällig). */
+export function todoReminderText(todo: Todo, now: Date): string {
+  const overdue = todo.due !== undefined && todo.due < isoDate(now)
+  return `${overdue ? 'Überfällig' : 'Fällig heute'}: ${todo.text}`
 }
 
 const NOTIFIED_KEY = 'life-hub.notified.v1'
