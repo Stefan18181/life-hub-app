@@ -6,11 +6,12 @@ import Notes from './features/notes/Notes'
 import Today from './features/overview/Today'
 import TopBar from './features/overview/TopBar'
 import Search, { type SearchNav } from './features/search/Search'
+import Stats from './features/stats/Stats'
 import Sync from './features/sync/Sync'
 import { useAutoBackup } from './features/sync/useAutoBackup'
 import Todos from './features/todos/Todos'
 
-const TABS = ['Heute', 'Kalender', 'To-dos', 'Notizen', 'Claude', 'Suche', 'Sync'] as const
+const TABS = ['Heute', 'Kalender', 'To-dos', 'Notizen', 'Claude', 'Suche', 'Statistik', 'Sync'] as const
 type Tab = (typeof TABS)[number]
 
 export default function App() {
@@ -94,6 +95,7 @@ export default function App() {
         )}
         {tab === 'Claude' && <ClaudeChat />}
         {tab === 'Suche' && <Search onNavigate={navigateTo} />}
+        {tab === 'Statistik' && <Stats />}
         {tab === 'Sync' && <Sync />}
       </main>
     </div>
