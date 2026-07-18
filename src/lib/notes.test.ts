@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   addNote,
+  backlinks,
   extractWikiLinks,
   findByTitle,
   loadNotes,
@@ -42,6 +43,30 @@ describe('extractWikiLinks', () => {
 
   it('ignoriert leere und mehrzeilige Klammern', () => {
     expect(extractWikiLinks('[[  ]] und [[a\nb]]')).toEqual([])
+  })
+})
+
+describe('backlinks', () => {
+  function note(id: string, title: string, content: string): Note {
+    return { id, title, content, updatedAt: '2026-07-01T00:00:00Z' }
+  }
+
+  it('findet Notizen, die per Wikilink auf die Zielnotiz zeigen', () => {
+    const target = note('t', 'Projekt A', '')
+    const notes = [
+      target,
+      note('b', 'Meeting', 'Besprechung zu [[projekt a]] heute.'),
+      note('c', 'Ideen', 'Nichts Verwandtes.'),
+      note('d', 'Notiz', 'Verweist auf [[Projekt A]] und [[Projekt B]].'),
+    ]
+    expect(backlinks(notes, target).map((n) => n.id).sort()).toEqual(['b', 'd'])
+  })
+
+  it('verweist nicht auf sich selbst und ignoriert leere Titel', () => {
+    const self = note('s', 'Tagebuch', 'Siehe [[Tagebuch]].')
+    expect(backlinks([self], self)).toEqual([])
+    const empty = note('e', '   ', 'egal')
+    expect(backlinks([empty, note('x', 'X', '[[ ]]')], empty)).toEqual([])
   })
 })
 

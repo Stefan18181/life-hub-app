@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { renderMarkdown } from '../../lib/markdown'
 import {
   addNote,
+  backlinks,
   findByTitle,
   loadNotes,
   removeNote,
@@ -20,6 +21,7 @@ export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}
   }, [notes])
 
   const selected = notes.find((n) => n.id === selectedId) ?? null
+  const incoming = selected ? backlinks(notes, selected) : []
 
   function createNote(title = 'Neue Notiz') {
     setNotes((prev) => {
@@ -140,6 +142,26 @@ export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}
                 placeholder={'Markdown unterstützt: # Überschrift, **fett**, - Liste, [[Wikilink]] …'}
                 className="min-h-64 w-full resize-y rounded-md border border-line bg-night p-4 font-mono text-sm leading-relaxed placeholder:text-muted focus:border-gold focus:outline-none"
               />
+            )}
+
+            {incoming.length > 0 && (
+              <div className="mt-4 border-t border-line pt-3">
+                <p className="mb-2 text-xs uppercase tracking-wide text-muted">
+                  Verlinkt von ({incoming.length})
+                </p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {incoming.map((n) => (
+                    <li key={n.id}>
+                      <button
+                        onClick={() => setSelectedId(n.id)}
+                        className="rounded-full border border-line px-2.5 py-1 text-xs text-ink transition-colors hover:border-gold hover:text-gold"
+                      >
+                        {n.title || 'Ohne Titel'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </>
         )}
