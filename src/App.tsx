@@ -3,17 +3,18 @@ import { loadTheme, saveTheme, type Theme } from './lib/theme'
 import Calendar from './features/calendar/Calendar'
 import ClaudeChat from './features/claude/ClaudeChat'
 import Notes from './features/notes/Notes'
+import Today from './features/overview/Today'
 import TopBar from './features/overview/TopBar'
 import Search, { type SearchNav } from './features/search/Search'
 import Sync from './features/sync/Sync'
 import { useAutoBackup } from './features/sync/useAutoBackup'
 import Todos from './features/todos/Todos'
 
-const TABS = ['Kalender', 'To-dos', 'Notizen', 'Claude', 'Suche', 'Sync'] as const
+const TABS = ['Heute', 'Kalender', 'To-dos', 'Notizen', 'Claude', 'Suche', 'Sync'] as const
 type Tab = (typeof TABS)[number]
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('Kalender')
+  const [tab, setTab] = useState<Tab>('Heute')
   // Sprungziel aus der Suche; wird beim manuellen Tab-Wechsel wieder verworfen.
   const [nav, setNav] = useState<SearchNav | null>(null)
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
@@ -70,6 +71,9 @@ export default function App() {
       <TopBar />
 
       <main>
+        {tab === 'Heute' && (
+          <Today nav={{ toCalendar: (date) => navigateTo({ tab: 'Kalender', date }) }} />
+        )}
         {tab === 'Kalender' && (
           <Calendar
             key={nav?.tab === 'Kalender' ? nav.date : 'cal'}

@@ -6,6 +6,7 @@ Dein persönlicher Hub für Kalender, To-dos, Notizen und Claude — als install
 
 ## Features
 
+- **Heute** — Startansicht mit den heutigen Terminen, den fälligen und überfälligen To-dos (direkt abhakbar) und einem Ausblick auf die nächsten Termine. Ein Klick springt in den Kalender.
 - **Kalender** — Monats- und Wochenansicht (Wochenstart Montag). Termine mit optionaler Uhrzeit, **mehrtägig** (Enddatum), **wiederkehrend** (täglich/wöchentlich/monatlich, einzelne Tage ausnehmbar), **bearbeitbar** und mit **Farb-Kategorien** (frei benennbar, als Filter nutzbar). Im Tagespanel erscheinen auch die **an dem Tag fälligen To-dos** und lassen sich dort direkt abhaken. **.ics-Export und -Import** zum Austausch mit Google/Apple/Outlook (Duplikate werden beim Import übersprungen).
 - **To-dos** — Aufgaben anlegen, abhaken, löschen; Erledigte auf einen Klick aufräumen. Optional mit **Fälligkeitsdatum** (überfällige werden markiert) und **wiederkehrend** (täglich/wöchentlich/monatlich) — abgehakte Wiederholungen rollen automatisch zum nächsten Termin weiter.
 - **Notizen** — Markdown-Editor mit Vorschau und Obsidian-kompatiblen `[[Wikilinks]]` zwischen Notizen.
