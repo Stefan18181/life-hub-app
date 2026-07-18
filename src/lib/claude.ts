@@ -98,7 +98,17 @@ export function buildSystemPrompt(
   const todoLines =
     openTodos.length === 0
       ? '(keine offenen To-dos)'
-      : openTodos.map((t) => `- ${t.text}`).join('\n')
+      : openTodos
+          .map((t) => {
+            const extras = [
+              t.repeat ? `wiederholt sich ${REPEAT_LABELS[t.repeat]}` : '',
+              t.due ? `fällig ${t.due}` : '',
+            ]
+              .filter(Boolean)
+              .join(', ')
+            return `- ${t.text}${extras ? ` (${extras})` : ''}`
+          })
+          .join('\n')
 
   const todayLabel = today.toLocaleDateString('de-DE', {
     weekday: 'long',
@@ -125,7 +135,7 @@ ${categoryLines}
 
 Beziehe dich auf diese Daten, wenn der Nutzer nach Terminen, Notizen oder To-dos fragt. Inhalte der Notizen kennst du nicht, nur die Titel.
 
-Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event), To-dos anlegen, abhaken und löschen (Werkzeuge add_todo, complete_todo und remove_todo) sowie Notizen anlegen und ergänzen (Werkzeuge create_note und append_to_note). Beim Anlegen eines Termins kannst du optional eine Kategorie (category, nutze den Schlüssel aus der Liste oben, wenn der Nutzer eine Kategorie nennt) und für mehrtägige Termine ein Enddatum (end_date) angeben. Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Datumsangaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Einträgen gemeint ist), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen, abgehakt oder gelöscht hast.`
+Du kannst Termine im Kalender anlegen und löschen (Werkzeuge add_event und remove_event), To-dos anlegen, abhaken und löschen (Werkzeuge add_todo, complete_todo und remove_todo) sowie Notizen anlegen und ergänzen (Werkzeuge create_note und append_to_note). Beim Anlegen eines Termins kannst du optional eine Kategorie (category, nutze den Schlüssel aus der Liste oben, wenn der Nutzer eine Kategorie nennt) und für mehrtägige Termine ein Enddatum (end_date) angeben. Beim Anlegen einer Aufgabe kannst du optional ein Fälligkeitsdatum (due) und eine Wiederholung (repeat: daily/weekly/monthly) angeben – z. B. „erinnere mich jeden Freitag ans Gießen" als wiederkehrende Aufgabe. Wenn der Nutzer dich darum bittet, nutze das passende Werkzeug direkt. Rechne relative Datumsangaben wie „morgen", „Donnerstag" oder „nächste Woche" anhand des heutigen Datums selbst in ein ISO-Datum (YYYY-MM-DD) um. Wenn eine Angabe unklar ist (z. B. welcher von mehreren Einträgen gemeint ist), frag lieber kurz nach, statt zu raten. Bestätige nach einer Änderung kurz, was du eingetragen, abgehakt oder gelöscht hast.`
 }
 
 /** Werkzeuge, mit denen Claude den Kalender im Browser verändern darf. */
@@ -272,11 +282,25 @@ export function runEventTool(name: string, input: unknown): ToolOutcome {
 export const TODO_TOOLS: Anthropic.Tool[] = [
   {
     name: 'add_todo',
-    description: 'Legt eine neue Aufgabe in der To-do-Liste des Nutzers an.',
+    description:
+      'Legt eine neue Aufgabe in der To-do-Liste des Nutzers an. Optional mit ' +
+      'Fälligkeitsdatum und Wiederholung (z. B. "jeden Freitag gießen").',
     input_schema: {
       type: 'object',
       properties: {
         text: { type: 'string', description: 'Kurzer Text der Aufgabe, z. B. "Milch kaufen"' },
+        due: {
+          type: 'string',
+          description:
+            'Optionales Fälligkeitsdatum (YYYY-MM-DD). Bei einer Wiederholung ist das der ' +
+            'erste Termin; ohne Angabe wird dann heute verwendet. Relative Angaben selbst umrechnen.',
+        },
+        repeat: {
+          type: 'string',
+          enum: ['daily', 'weekly', 'monthly'],
+          description:
+            'Optionale Wiederholung: daily (täglich), weekly (wöchentlich) oder monthly (monatlich).',
+        },
       },
       required: ['text'],
     },
@@ -400,8 +424,30 @@ export function runTodoTool(name: string, input: unknown): ToolOutcome {
     if (!text) {
       return { summary: 'Fehler: "text" darf nicht leer sein.', isError: true }
     }
-    saveTodos(addTodo(loadTodos(), text))
-    return { summary: `Aufgabe hinzugefügt: ${text}`, isError: false }
+    if (args.due !== undefined && args.due !== '' && !isIsoDate(args.due)) {
+      return { summary: 'Fehler: "due" muss im Format YYYY-MM-DD vorliegen.', isError: true }
+    }
+    const repeat =
+      args.repeat === 'daily' || args.repeat === 'weekly' || args.repeat === 'monthly'
+        ? args.repeat
+        : undefined
+    if (args.repeat !== undefined && args.repeat !== '' && !repeat) {
+      return {
+        summary: 'Fehler: "repeat" muss daily, weekly oder monthly sein.',
+        isError: true,
+      }
+    }
+    const due = isIsoDate(args.due) ? args.due : undefined
+    saveTodos(addTodo(loadTodos(), text, { due, repeat }))
+    // Wie in addTodo: eine Wiederholung erhält ohne Datum "heute" als Start.
+    const effectiveDue = repeat ? due ?? isoDate(new Date()) : due
+    const extras = [
+      repeat ? `wiederholt sich ${REPEAT_LABELS[repeat]}` : '',
+      effectiveDue ? `fällig ${effectiveDue}` : '',
+    ]
+      .filter(Boolean)
+      .join(', ')
+    return { summary: `Aufgabe hinzugefügt: ${text}${extras ? ` (${extras})` : ''}`, isError: false }
   }
 
   if (name === 'complete_todo' || name === 'remove_todo') {

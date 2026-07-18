@@ -178,6 +178,32 @@ describe('runTodoTool', () => {
     expect(loadTodos()).toHaveLength(1)
   })
 
+  it('legt eine wiederkehrende Aufgabe mit Fälligkeit an', () => {
+    const outcome = runTodoTool('add_todo', {
+      text: 'Gießen',
+      repeat: 'weekly',
+      due: '2026-07-24',
+    })
+    expect(outcome.isError).toBe(false)
+    expect(outcome.summary).toContain('wöchentlich')
+    expect(outcome.summary).toContain('2026-07-24')
+    const [todo] = loadTodos()
+    expect(todo).toMatchObject({ text: 'Gießen', repeat: 'weekly', due: '2026-07-24' })
+  })
+
+  it('nutzt bei repeat ohne due das heutige Datum als Start', () => {
+    expect(runTodoTool('add_todo', { text: 'Sport', repeat: 'daily' }).isError).toBe(false)
+    const [todo] = loadTodos()
+    expect(todo.repeat).toBe('daily')
+    expect(todo.due).toBeTruthy()
+  })
+
+  it('lehnt ungültige due- und repeat-Werte ab', () => {
+    expect(runTodoTool('add_todo', { text: 'X', due: '24.07.2026' }).isError).toBe(true)
+    expect(runTodoTool('add_todo', { text: 'X', repeat: 'yearly' }).isError).toBe(true)
+    expect(loadTodos()).toEqual([])
+  })
+
   it('hakt nur offene, passende Aufgaben ab', () => {
     seed([
       { id: 'a', text: 'Milch kaufen', done: false, createdAt: '2026-07-13T10:00:00Z' },
