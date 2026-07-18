@@ -76,6 +76,26 @@ export function extractWikiLinks(content: string): string[] {
 }
 
 /**
+ * Extrahiert #tags aus einem Markdown-Text (klein geschrieben, ohne Duplikate).
+ * Ein Tag beginnt am Zeilenanfang oder nach Leerraum mit `#` und einem Buchstaben;
+ * so werden Markdown-Überschriften („# Titel") nicht als Tags erkannt.
+ */
+export function extractTags(content: string): string[] {
+  const tags = new Set<string>()
+  for (const match of content.matchAll(/(?:^|\s)#([\p{L}][\p{L}\p{N}_/-]*)/gu)) {
+    tags.add(match[1].toLowerCase())
+  }
+  return [...tags]
+}
+
+/** Alle über die Notizen vergebenen Tags, alphabetisch sortiert. */
+export function allTags(notes: Note[]): string[] {
+  const set = new Set<string>()
+  for (const n of notes) for (const t of extractTags(n.content)) set.add(t)
+  return [...set].sort((a, b) => a.localeCompare(b, 'de'))
+}
+
+/**
  * Notizen, die per [[Wikilink]] auf die Zielnotiz verweisen
  * (Vergleich über den Titel, ohne Selbstbezug).
  */

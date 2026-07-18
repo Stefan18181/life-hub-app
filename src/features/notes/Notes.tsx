@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { renderMarkdown } from '../../lib/markdown'
 import {
   addNote,
+  allTags,
   backlinks,
+  extractTags,
   findByTitle,
   loadNotes,
   removeNote,
@@ -15,13 +17,22 @@ export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}
   const [notes, setNotes] = useState<Note[]>(() => loadNotes())
   const [selectedId, setSelectedId] = useState<string | null>(initialNoteId ?? notes[0]?.id ?? null)
   const [preview, setPreview] = useState(false)
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
 
   useEffect(() => {
     saveNotes(notes)
   }, [notes])
 
+  const tags = allTags(notes)
+  // Ein aktiver Filter, dessen Tag es nicht mehr gibt, wird ignoriert.
+  const activeTag = tagFilter && tags.includes(tagFilter) ? tagFilter : null
+  const visibleNotes = activeTag
+    ? notes.filter((n) => extractTags(n.content).includes(activeTag))
+    : notes
+
   const selected = notes.find((n) => n.id === selectedId) ?? null
   const incoming = selected ? backlinks(notes, selected) : []
+  const selectedTags = selected ? extractTags(selected.content) : []
 
   function createNote(title = 'Neue Notiz') {
     setNotes((prev) => {
@@ -55,11 +66,30 @@ export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}
           </button>
         </header>
 
+        {tags.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            <TagChip active={activeTag === null} onClick={() => setTagFilter(null)}>
+              Alle
+            </TagChip>
+            {tags.map((t) => (
+              <TagChip
+                key={t}
+                active={activeTag === t}
+                onClick={() => setTagFilter(activeTag === t ? null : t)}
+              >
+                #{t}
+              </TagChip>
+            ))}
+          </div>
+        )}
+
         {notes.length === 0 ? (
           <p className="text-sm text-muted">Noch keine Notizen.</p>
+        ) : visibleNotes.length === 0 ? (
+          <p className="text-sm text-muted">Keine Notiz mit #{activeTag}.</p>
         ) : (
           <ul className="space-y-1">
-            {notes.map((n) => (
+            {visibleNotes.map((n) => (
               <li key={n.id}>
                 <button
                   onClick={() => setSelectedId(n.id)}
@@ -144,6 +174,20 @@ export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}
               />
             )}
 
+            {selectedTags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {selectedTags.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTagFilter(t)}
+                    className="rounded-full bg-night px-2.5 py-1 text-xs text-gold transition-colors hover:text-ink"
+                  >
+                    #{t}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {incoming.length > 0 && (
               <div className="mt-4 border-t border-line pt-3">
                 <p className="mb-2 text-xs uppercase tracking-wide text-muted">
@@ -167,5 +211,19 @@ export default function Notes({ initialNoteId }: { initialNoteId?: string } = {}
         )}
       </section>
     </div>
+  )
+}
+
+function TagChip(props: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={props.onClick}
+      className={
+        'rounded-full border px-2.5 py-1 text-xs transition-colors ' +
+        (props.active ? 'border-gold text-gold' : 'border-line text-muted hover:text-ink')
+      }
+    >
+      {props.children}
+    </button>
   )
 }
