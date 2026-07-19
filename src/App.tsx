@@ -43,7 +43,26 @@ export default function App() {
     <div className="mx-auto min-h-screen max-w-5xl px-3 pb-12 sm:px-4">
       <header className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:py-6">
         <div className="flex items-center gap-3">
-          <h1 className="font-serif text-2xl text-gold">Life Hub</h1>
+          <h1 className="flex items-center gap-2 text-2xl text-gold">
+            <svg
+              viewBox="0 0 100 100"
+              aria-hidden
+              className="h-9 w-9 shrink-0"
+            >
+              <text
+                x="50"
+                y="55"
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontFamily='Georgia, "Times New Roman", serif'
+                fontSize="92"
+                fill="currentColor"
+              >
+                M
+              </text>
+            </svg>
+            <span className="font-serif">Life Hub</span>
+          </h1>
           <button
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Helles Design' : 'Dunkles Design'}

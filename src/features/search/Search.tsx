@@ -24,7 +24,7 @@ export default function Search({ onNavigate }: { onNavigate: (nav: SearchNav) =>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Termine, To-dos und Notizen durchsuchen …"
+        placeholder="Durchsuchen … (mit #tag gezielt nach Notiz-Tags)"
         autoFocus
         className="w-full rounded-xl border border-line bg-card px-4 py-3 text-sm placeholder:text-muted focus:border-gold focus:outline-none"
       />

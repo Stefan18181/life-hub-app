@@ -35,6 +35,28 @@ describe('search', () => {
     expect(search('SPORT', { events, todos, notes }).events.map((e) => e.id)).toEqual(['e2'])
     expect(search('   ', { events, todos, notes }).total).toBe(0)
   })
+
+  it('sucht mit führendem # gezielt nach Notiz-Tags', () => {
+    const tagged: Note[] = [
+      { id: 'a', title: 'A', content: 'Text #arbeit hier', updatedAt: '2026-07-13T10:00:00Z' },
+      { id: 'b', title: 'B', content: 'nur #privat', updatedAt: '2026-07-12T10:00:00Z' },
+      { id: 'c', title: 'arbeit', content: 'ohne Tag, aber arbeit im Text', updatedAt: '2026-07-11T10:00:00Z' },
+    ]
+    const r = search('#arbeit', { events, todos, notes: tagged })
+    // nur die per Tag markierte Notiz, nicht die mit "arbeit" nur im Text
+    expect(r.notes.map((n) => n.id)).toEqual(['a'])
+    expect(r.events).toEqual([])
+    expect(r.todos).toEqual([])
+    expect(r.total).toBe(1)
+  })
+
+  it('# allein liefert keine Treffer, Präfix matcht Tags', () => {
+    const tagged: Note[] = [
+      { id: 'a', title: 'A', content: '#arbeitsplatz', updatedAt: '2026-07-13T10:00:00Z' },
+    ]
+    expect(search('#', { events, todos, notes: tagged }).total).toBe(0)
+    expect(search('#arbeit', { events, todos, notes: tagged }).notes.map((n) => n.id)).toEqual(['a'])
+  })
 })
 
 describe('snippet', () => {
